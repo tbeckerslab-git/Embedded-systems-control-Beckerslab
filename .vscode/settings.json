@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {
     "python.autoComplete.extraPaths": [
         "/opt/ros/noetic/lib/python3/dist-packages"
@@ -6,3 +7,6 @@
         "/opt/ros/noetic/lib/python3/dist-packages"
     ]
 }
+=======
+{}
+>>>>>>> f7b8435f543d900a70b63a26fe0f590cd5229bea
