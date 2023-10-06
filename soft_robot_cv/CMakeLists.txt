@@ -11,6 +11,11 @@ find_package(catkin REQUIRED COMPONENTS
   opencv
   roscpp
   rospy
+  sensor_msgs
+  cv_bridge
+  roscpp
+  std_msgs
+  image_transport
 )
 
 ## System dependencies are found with CMake's conventions
@@ -204,3 +209,7 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+find_package(OpenCV)
+include_directories(${OpenCV_INCLUDE_DIRS})
+target_link_libraries(my_awesome_library ${OpenCV_LIBRARIES})

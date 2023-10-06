@@ -25,7 +25,7 @@ int main(int argc, char **argv)
   cv::namedWindow("view");
 
   image_transport::ImageTransport it(nh);
-  image_transport::Subscriber sub = it.subscribe("~/image_raw", 1, imageCallback);
+  image_transport::Subscriber sub = it.subscribe("/camera/image_raw", 1, imageCallback);
   ros::spin();
   cv::destroyWindow("view");
 }
