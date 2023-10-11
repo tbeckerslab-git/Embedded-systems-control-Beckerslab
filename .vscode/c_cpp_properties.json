@@ -6,9 +6,11 @@
                 "limitSymbolsToIncludedHeaders": false
             },
             "includePath": [
+                "${workspaceFolder}/**",
                 "/opt/ros/noetic/include/**",
                 "/usr/include/**",
-                "/usr/include/opencv4"
+                "/usr/include/opencv4",
+                "${workspaceFolder}/DynamixelSDK/c++/include/dynamixel_sdk"
             ],
             "name": "ROS",
             "intelliSenseMode": "gcc-x64",
