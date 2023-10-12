@@ -4,9 +4,8 @@
 
 ## Description
 This repository contains the integrated control system code for controlling a Dynamixel motor, 
-interfacing with a FLIR camera, and implementing a port-Hamiltonian machine learning model. 
-The machine learning model utilizes feedback from the FLIR camera and dispatches output commands to the Dynamixel motor, guiding 
-it to act accordingly. The synchronization and integration of these components are achieved using ROS (Robot Operating System). This is accomplished with the help
+interfacing with a FLIR camera, and the implementation of a port-hamiltonian-based ML model. 
+The idea behind this is feedback from the camera feeds into the model whose output is sent to the motor indicating how much torque it should produce. The synchronization and integration of these components are achieved using ROS (Robot Operating System). This is accomplished with the help
 of two sub repositories linked below.
 
 
