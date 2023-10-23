@@ -8,10 +8,15 @@ project(soft_robot_cv)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  opencv
+  cv_bridge
+  image_transport
   roscpp
   rospy
+  sensor_msgs
+  std_msgs
 )
+
+find_package(OpenCV)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -120,6 +125,8 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
+include_directories(${OpenCV_INCLUDE_DIRS})
+
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/soft_robot_cv.cpp
@@ -204,3 +211,14 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+add_executable(webcam_pub src/webcam_pub.cpp)
+target_link_libraries(webcam_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})	
+add_executable(webcam_sub src/webcam_sub.cpp)
+target_link_libraries(webcam_sub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+# add_executable(opencv_sub src/opencv_sub.cpp)
+# target_link_libraries(opencv_sub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+# add_executable(webcam_circles src/webcam_circles.cpp)
+# target_link_libraries(webcam_circles ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_executable(mosse_class src/mosse_class.cpp)
+target_link_libraries(mosse_class ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
