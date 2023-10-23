@@ -1,0 +1,33 @@
+<launch>
+  <node
+    pkg="cv_basics"
+    type="webcam_pub_cpp"
+    name="webcam_pub_cpp"
+    output="screen"
+  />
+  <!-- <node
+    pkg="cv_basics"
+    type="webcam_sub_cpp"
+    name="webcam_sub_cpp"
+    output="screen"
+  /> -->
+  <!-- <node
+    pkg="cv_basics"
+    type="opencv_sub"
+    name="opencv_sub"
+    output="screen"
+  />  -->
+ <!-- <node
+    pkg="cv_basics"
+    type="webcam_circles"
+    name="webcam_circles"
+    output="screen"
+  /> -->
+  <node
+    pkg="cv_basics"
+    type="test_class"
+    name="test_class"
+    output="screen"
+  /> 
+  
+</launch> 
