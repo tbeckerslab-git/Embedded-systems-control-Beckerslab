@@ -29,5 +29,10 @@
     name="test_class"
     output="screen"
   /> 
-  
+  <node
+    pkg="cv_basics"
+    type="aruco"
+    name="aruco"
+    output="screen"
+  /> 
 </launch> 
