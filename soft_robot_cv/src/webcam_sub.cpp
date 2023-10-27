@@ -49,7 +49,7 @@ int main(int argc, char **argv)
   image_transport::ImageTransport it(nh);
    
   // Subscribe to the /camera topic
-  image_transport::Subscriber sub = it.subscribe("camera", 1, imageCallback);
+  image_transport::Subscriber sub = it.subscribe("camera/image_raw", 1, imageCallback);
    
   // Make sure we keep reading new video frames by calling the imageCallback function
   ros::spin();
