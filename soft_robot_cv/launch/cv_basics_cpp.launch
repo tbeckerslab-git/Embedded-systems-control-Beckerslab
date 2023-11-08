@@ -30,10 +30,10 @@
     name="mosse_class"
     output="screen"
   /> 
-  <node
+  <!-- <node
     pkg="cv_basics"
     type="aruco"
     name="aruco"
     output="screen"
-  /> 
+  />  -->
 </launch> 
