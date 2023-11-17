@@ -48,16 +48,16 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
   // cv::aruco::estimatePoseSingleMarkers(markerCorners, 0.5, current_frame);
   cv::aruco::drawDetectedMarkers(current_frame, markerCorners, markerIds);
 
-  // Display the current frame
-  cv::imshow("view",current_frame); 
-    
   // Display frame for 30 milliseconds
   cv::waitKey(30);
 
-    // Calculate Frames per second (FPS)
-    float fps = getTickFrequency() / ((double)getTickCount() - timer);
-        // Display FPS on frame
-    putText(current_frame, "FPS : " + to_string(int(fps)), Point(100,50), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(50,170,50), 2);
+  // Calculate Frames per second (FPS)
+  float fps = getTickFrequency() / ((double)getTickCount() - timer);
+      // Display FPS on frame
+  putText(current_frame, "FPS : " + to_string(int(fps)), Point(100,50), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(50,170,50), 2);
+
+  // Display the current frame
+  cv::imshow("view",current_frame); 
  
 }
 
