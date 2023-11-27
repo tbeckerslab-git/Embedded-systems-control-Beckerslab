@@ -49,7 +49,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
   cv::aruco::drawDetectedMarkers(current_frame, markerCorners, markerIds);
 
   // Display frame for 30 milliseconds
-  cv::waitKey(30);
+  cv::waitKey(1);
 
   // Calculate Frames per second (FPS)
   float fps = getTickFrequency() / ((double)getTickCount() - timer);

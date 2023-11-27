@@ -1,5 +1,8 @@
 <launch>
   <include file="$(find spinnaker_camera_driver)/launch/camera.launch" />
+  <!-- <include file="$(find soft_robot_cv)spinnaker2cvmat(1)/Spinnaker2CVmat/Spinnaker2CVmat/Spinnaker2CVmat.cpp" /> -->
+
+
   <!-- <node
     pkg="soft_robot_cv"
     type="webcam_pub"
@@ -35,6 +38,6 @@
     type="aruco"
     name="aruco"
     output="screen"
-  /> 
-   -->
+  />  -->
+  
 </launch> 
