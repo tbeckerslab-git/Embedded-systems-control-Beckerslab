@@ -1,7 +1,6 @@
 <launch>
   <include file="$(find spinnaker_camera_driver)/launch/camera.launch" />
-  <!-- <include file="$(find soft_robot_cv)spinnaker2cvmat(1)/Spinnaker2CVmat/Spinnaker2CVmat/Spinnaker2CVmat.cpp" /> -->
-
+  <!-- <include file="$(find soft_robot_cv)/src/Spinnaker2CVmat.cpp" /> -->
 
   <!-- <node
     pkg="soft_robot_cv"
@@ -33,11 +32,17 @@
     name="mosse_class"
     output="screen"
   />  -->
-  <!-- <node
+  <node
     pkg="soft_robot_cv"
     type="aruco"
     name="aruco"
     output="screen"
-  />  -->
+  /> 
+   <!-- <node
+    pkg="soft_robot_cv"
+    type="video_cap"
+    name="video_cap"
+    output="screen"
+  />   -->
   
 </launch> 
