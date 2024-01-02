@@ -29,10 +29,14 @@ cv.destroyAllWindows()
 
 ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
 print(mtx)
+print(dist)
+print("Here")
 
 img = cv.imread('2023-12-07-121557.jpg')
 h,  w = img.shape[:2]
 newcameramtx, roi = cv.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
+print(newcameramtx)
+print("Here")
 
 # undistort
 dst = cv.undistort(img, mtx, dist, None, newcameramtx)

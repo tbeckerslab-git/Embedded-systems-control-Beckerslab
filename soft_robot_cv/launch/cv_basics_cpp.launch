@@ -1,11 +1,11 @@
 <launch>
-  <include file="$(find spinnaker_camera_driver)/launch/camera.launch" />
-  <!-- <node
+  <!-- <include file="$(find spinnaker_camera_driver)/launch/camera.launch" /> -->
+  <node
     pkg="soft_robot_cv"
     type="webcam_pub"
     name="webcam_pub"
     output="screen"
-  /> -->
+  />
   <!-- <node
     pkg="soft_robot_cv"
     type="webcam_sub"
@@ -24,16 +24,16 @@
     name="webcam_circles"
     output="screen"
   /> -->
-  <node
+  <!-- <node
     pkg="soft_robot_cv"
     type="mosse_class"
     name="mosse_class"
     output="screen"
-  /> 
-  <!-- <node
-    pkg="cv_basics"
+  />  -->
+  <node
+    pkg="soft_robot_cv"
     type="aruco"
     name="aruco"
     output="screen"
-  />  -->
+  /> 
 </launch> 
