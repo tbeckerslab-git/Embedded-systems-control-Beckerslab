@@ -32,12 +32,12 @@
     name="mosse_class"
     output="screen"
   />  -->
-  <node
+  <!-- <node
     pkg="soft_robot_cv"
     type="aruco"
     name="aruco"
     output="screen"
-  /> 
+  />  -->
    <!-- <node
     pkg="soft_robot_cv"
     type="video_cap"
