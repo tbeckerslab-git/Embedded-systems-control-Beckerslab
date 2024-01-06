@@ -86,8 +86,8 @@ int main(int argc, char **argv)
     //Initialize the aruco marker
     cv::Mat markerImage;
     const cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
-    cv::aruco::drawMarker(dictionary, 22, 200, markerImage, 1);
-    // cv::imshow("marker", markerImage);
+    cv::aruco::drawMarker(dictionary, 10, 200, markerImage, 1);
+    cv::imshow("marker", markerImage);
     
     // The name of the node
     ros::init(argc, argv, "frame_listener");
