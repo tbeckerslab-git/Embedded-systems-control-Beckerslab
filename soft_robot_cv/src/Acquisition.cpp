@@ -320,27 +320,60 @@ int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
                     //
                     ImagePtr convertedImage = processor.Convert(pResultImage, PixelFormat_Mono8);
 
-                    // Create a unique filename
-                    ostringstream filename;
+                    // //Convert mono8 to opencv Mat
+                    // unsigned int XPadding = convertedImage->GetXPadding();
+                    // unsigned int YPadding = convertedImage->GetYPadding();
+                    // unsigned int rowsize = convertedImage->GetWidth();
+                    // unsigned int colsize = convertedImage->GetHeight();
 
-                    filename << "Acquisition-";
-                    if (!deviceSerialNumber.empty())
-                    {
-                        filename << deviceSerialNumber.c_str() << "-";
-                    }
-                    filename << imageCnt << ".jpg";
+                    // //image data contains padding. When allocating Mat container size, you need to account for the X,Y image data padding. 
+                    // Mat cvimg = cv::Mat(colsize + YPadding, rowsize + XPadding, CV_8U, convertedImage->GetData(), convertedImage->GetStride()); //Changed 3rd argument from CV_8UC3 to CV_8U
+                    // namedWindow("current Image", CV_WINDOW_AUTOSIZE);
+                    // imshow("current Image", cvimg);
+                    // resizeWindow("current Image", rowsize / 2, colsize / 2);
+                    // waitKey(1);//otherwise the image will not display...
 
-                    //
-                    // Save image
-                    //
-                    // *** NOTES ***
-                    // The standard practice of the examples is to use device
-                    // serial numbers to keep images of one device from
-                    // overwriting those of another.
-                    //
-                    convertedImage->Save(filename.str().c_str());
+                    // //Aruco part
+                    // //Changes from aruco.cpp: current_frame changed to cvimg
+                    //     std::vector<int> markerIds;
+                    //     std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
+                    //     // cv::Ptr<cv::aruco::DetectorParameters> detectorParams = cv::aruco::DetectorParameters();
+                    //     const cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
+                    //     // cv::aruco::ArucoDetector detector(dictionary, detectorParams);
+                    //     cv::aruco::detectMarkers(cvimg, dictionary, markerCorners, markerIds); //  cv::aruco::detectMarkers(current_frame, dictionary, markerCorners, markerIds); //
 
-                    cout << "Image saved at " << filename.str() << endl;
+                    //     // cv::aruco::estimatePoseSingleMarkers(markerCorners, 0.5, current_frame);
+                    //     cv::aruco::drawDetectedMarkers(cvimg, markerCorners, markerIds);
+
+                    //     // Display frame for 30 milliseconds
+                    //     cv::waitKey(1);
+                        
+                    //     // Display the current frame
+                    //     cv::imshow("view",current_frame); 
+
+                        
+
+                    // // Create a unique filename
+                    // ostringstream filename;
+
+                    // filename << "Acquisition-";
+                    // if (!deviceSerialNumber.empty())
+                    // {
+                    //     filename << deviceSerialNumber.c_str() << "-";
+                    // }
+                    // filename << imageCnt << ".jpg";
+
+                    // //
+                    // // Save image
+                    // //
+                    // // *** NOTES ***
+                    // // The standard practice of the examples is to use device
+                    // // serial numbers to keep images of one device from
+                    // // overwriting those of another.
+                    // //
+                    // convertedImage->Save(filename.str().c_str());
+
+                    // cout << "Image saved at " << filename.str() << endl;
                 }
 
                 //
