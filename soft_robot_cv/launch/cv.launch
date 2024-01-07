@@ -44,5 +44,11 @@
     name="video_cap"
     output="screen"
   />   -->
+  <node
+    pkg="spinnaker_camera_driver"
+    type="Acquisition"
+    name="Acquisition"
+    output="screen"
+  /> 
   
 </launch> 

@@ -52,6 +52,7 @@ using namespace std;
 #include <ros/ros.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
+#include <geometry_msgs/Point.h>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/aruco.hpp>
@@ -152,8 +153,26 @@ int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
     cv::Mat markerImage;
     const cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
     cv::aruco::drawMarker(dictionary, 22, 200, markerImage, 1);
-    cv::imshow("marker", markerImage);
-    cv::waitKey();
+    // cv::imshow("marker", markerImage);
+    // cv::waitKey(1);
+    namedWindow("current Image");
+    std::vector<int> markerIds;
+    std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
+    // cv::Ptr<cv::aruco::DetectorParameters> detectorParams = cv::aruco::DetectorParameters();
+
+    //Initialize camera and distortion parameters
+    //FIXME: recalibrate camera and get correct matrices
+    float data[9] = { 1.05326155e+03, 0.00000000e+00, 6.72839741e+02, 0.00000000e+00, 1.05471479e+03, 3.55441462e+02, 0, 0, 1.00000000e+00};
+    cv::Mat cameraMatrix = cv::Mat(3, 3, CV_32F, data);
+
+    float data2[5] = { 0.09004139, -0.29306343, -0.00608111, 0.00926377, 0.2020092};
+    cv::Mat distCoeffs = cv::Mat(1, 5, CV_32F, data2);
+
+    //Create ros handler
+    ros::NodeHandle n_; 
+    //Create publisher
+    ros::Publisher pub_ = n_.advertise<geometry_msgs::Point>("/position", 1);
+  
 
     try
     {
@@ -240,7 +259,7 @@ int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
         cout << endl;
 
         // Retrieve, convert, and save images
-        const unsigned int k_numImages = 10;
+        // const unsigned int k_numImages = 10;
 
         //
         // Create ImageProcessor instance for post processing images
@@ -256,7 +275,7 @@ int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
         //
         processor.SetColorProcessing(SPINNAKER_COLOR_PROCESSING_ALGORITHM_HQ_LINEAR);
 
-        for (unsigned int imageCnt = 0; imageCnt < k_numImages; imageCnt++)
+        while (true)//for (unsigned int imageCnt = 0; imageCnt < 100; imageCnt++)
         {
             try
             {
@@ -272,7 +291,7 @@ int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
                 // needed, the image must be released in order to keep the
                 // buffer from filling up.
                 //
-                ImagePtr pResultImage = pCam->GetNextImage(1000);
+                ImagePtr pResultImage = pCam->GetNextImage(50);
 
                 //
                 // Ensure image completion
@@ -293,20 +312,6 @@ int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
                 else
                 {
                     //
-                    // Print image information; height and width recorded in pixels
-                    //
-                    // *** NOTES ***
-                    // Images have quite a bit of available metadata including
-                    // things such as CRC, image status, and offset values, to
-                    // name a few.
-                    //
-                    const size_t width = pResultImage->GetWidth();
-
-                    const size_t height = pResultImage->GetHeight();
-
-                    cout << "Grabbed image " << imageCnt << ", width = " << width << ", height = " << height << endl;
-
-                    //
                     // Convert image to mono 8
                     //
                     // *** NOTES ***
@@ -320,60 +325,34 @@ int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
                     //
                     ImagePtr convertedImage = processor.Convert(pResultImage, PixelFormat_Mono8);
 
-                    // //Convert mono8 to opencv Mat
-                    // unsigned int XPadding = convertedImage->GetXPadding();
-                    // unsigned int YPadding = convertedImage->GetYPadding();
-                    // unsigned int rowsize = convertedImage->GetWidth();
-                    // unsigned int colsize = convertedImage->GetHeight();
+                    //Convert mono8 to opencv Mat
+                    unsigned int XPadding = convertedImage->GetXPadding();
+                    unsigned int YPadding = convertedImage->GetYPadding();
+                    unsigned int rowsize = convertedImage->GetWidth();
+                    unsigned int colsize = convertedImage->GetHeight();
 
-                    // //image data contains padding. When allocating Mat container size, you need to account for the X,Y image data padding. 
-                    // Mat cvimg = cv::Mat(colsize + YPadding, rowsize + XPadding, CV_8U, convertedImage->GetData(), convertedImage->GetStride()); //Changed 3rd argument from CV_8UC3 to CV_8U
-                    // namedWindow("current Image", CV_WINDOW_AUTOSIZE);
-                    // imshow("current Image", cvimg);
-                    // resizeWindow("current Image", rowsize / 2, colsize / 2);
-                    // waitKey(1);//otherwise the image will not display...
+                    //image data contains padding. When allocating Mat container size, you need to account for the X,Y image data padding. 
+                    Mat cvimg = cv::Mat(colsize + YPadding, rowsize + XPadding, CV_8U, convertedImage->GetData(), convertedImage->GetStride()); //Changed 3rd argument from CV_8UC3 to CV_8U
 
                     // //Aruco part
                     // //Changes from aruco.cpp: current_frame changed to cvimg
-                    //     std::vector<int> markerIds;
-                    //     std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
-                    //     // cv::Ptr<cv::aruco::DetectorParameters> detectorParams = cv::aruco::DetectorParameters();
-                    //     const cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
-                    //     // cv::aruco::ArucoDetector detector(dictionary, detectorParams);
-                    //     cv::aruco::detectMarkers(cvimg, dictionary, markerCorners, markerIds); //  cv::aruco::detectMarkers(current_frame, dictionary, markerCorners, markerIds); //
-
-                    //     // cv::aruco::estimatePoseSingleMarkers(markerCorners, 0.5, current_frame);
-                    //     cv::aruco::drawDetectedMarkers(cvimg, markerCorners, markerIds);
-
-                    //     // Display frame for 30 milliseconds
-                    //     cv::waitKey(1);
                         
-                    //     // Display the current frame
-                    //     cv::imshow("view",current_frame); 
+                    cv::aruco::detectMarkers(cvimg, dictionary, markerCorners, markerIds); //  cv::aruco::detectMarkers(current_frame, dictionary, markerCorners, markerIds); //
+                    //Calculate pose of marker where rvecs is rotation and tvecs is translation with respect to the camera lens
+                    std::vector<cv::Vec3d> rvecs, tvecs;
+                    cv::Mat objPoints(4, 1, CV_32FC3);
+                    cv::aruco::estimatePoseSingleMarkers(markerCorners, 0.078, cameraMatrix, distCoeffs, rvecs, tvecs, objPoints); //Marker side length is 0.078 meters
+                    
+                    //Create and publish position message
+                    geometry_msgs::Point position;
 
-                        
+                    for (auto elem : tvecs) {
+                    position.x = elem[0];
+                    position.y = elem[1];
+                    position.z = elem[2];
+                    }
 
-                    // // Create a unique filename
-                    // ostringstream filename;
-
-                    // filename << "Acquisition-";
-                    // if (!deviceSerialNumber.empty())
-                    // {
-                    //     filename << deviceSerialNumber.c_str() << "-";
-                    // }
-                    // filename << imageCnt << ".jpg";
-
-                    // //
-                    // // Save image
-                    // //
-                    // // *** NOTES ***
-                    // // The standard practice of the examples is to use device
-                    // // serial numbers to keep images of one device from
-                    // // overwriting those of another.
-                    // //
-                    // convertedImage->Save(filename.str().c_str());
-
-                    // cout << "Image saved at " << filename.str() << endl;
+                    pub_.publish(position);
                 }
 
                 //
@@ -386,7 +365,7 @@ int AcquireImages(CameraPtr pCam, INodeMap& nodeMap, INodeMap& nodeMapTLDevice)
                 //
                 pResultImage->Release();
 
-                cout << endl;
+                // cout << endl;
             }
             catch (Spinnaker::Exception& e)
             {
@@ -501,8 +480,11 @@ int RunSingleCamera(CameraPtr pCam)
 
 // Example entry point; please see Enumeration example for more in-depth
 // comments on preparing and cleaning up the system.
-int main(int /*argc*/, char** /*argv*/)
+int main(int argc, char** argv)
 {
+    // Initialize ros with the name of this node
+    ros::init(argc, argv, "aruco_handler");
+    
     // Since this application saves images in the current folder
     // we must ensure that we have permission to write to this folder.
     // If we do not have permission, fail right away.
@@ -553,6 +535,8 @@ int main(int /*argc*/, char** /*argv*/)
 
         return -1;
     }
+
+
 
     //
     // Create shared pointer to camera
