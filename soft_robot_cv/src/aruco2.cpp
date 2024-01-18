@@ -57,12 +57,6 @@ public:
     //Calculate pose of marker where rvecs is rotation and tvecs is translation with respect to the camera lens
     std::vector<cv::Vec3d> rvecs, tvecs;
     cv::Mat objPoints(4, 1, CV_32FC3);
-    // cv::Size s = current_frame.size();
-    // int rows = s.height;
-    // int cols = s.width;
-    // cout << rows << endl;
-    // cout << cols << endl;
-
     cv::aruco::estimatePoseSingleMarkers(markerCorners, 0.078, cameraMatrix, distCoeffs, rvecs, tvecs, objPoints); //Marker side length is 0.078 meters
     
     //Create and publish position message
@@ -84,11 +78,11 @@ public:
     image_transport::ImageTransport it(n_); 
 
     //Topic you want to publish
-    pub_ = n_.advertise<geometry_msgs::Point>("/position", 1);
+    pub_ = n_.advertise<geometry_msgs::Point>("/position2", 1);
 
     //Topic you want to subscribe
     //FIXME: n_.subscribe should be it.subscribe. Figure out why it'ss throwing an error
-    sub_ = n_.subscribe("/camera/image_raw", 1, &SubscribeAndPublish::imageCallback, this);
+    sub_ = n_.subscribe("/camera/image_raw2", 1, &SubscribeAndPublish::imageCallback, this);
   }
 
 private:

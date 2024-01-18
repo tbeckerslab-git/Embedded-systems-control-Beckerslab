@@ -1,5 +1,9 @@
 <launch>
-  <include file="$(find spinnaker_camera_driver)/launch/camera.launch" />
+  <!-- <include file="$(find spinnaker_camera_driver)/launch/default_camera.launch" /> -->
+  <include file="$(find spinnaker_camera_driver)/launch/camera23156987.launch" />
+  <include file="$(find spinnaker_camera_driver)/launch/camera23141921.launch" />
+  <!-- <include file="$(find spinnaker_camera_driver)/launch/camera23141922.launch" /> -->
+
   <!-- <include file="$(find soft_robot_cv)/src/Spinnaker2CVmat.cpp" /> -->
 
   <!-- <node
@@ -32,10 +36,16 @@
     name="mosse_class"
     output="screen"
   />  -->
-  <!-- <node
+  <node
     pkg="soft_robot_cv"
     type="aruco"
     name="aruco"
+    output="screen"
+  /> 
+  <!-- <node
+    pkg="soft_robot_cv"
+    type="aruco2"
+    name="aruco2"
     output="screen"
   />  -->
    <!-- <node
@@ -44,11 +54,11 @@
     name="video_cap"
     output="screen"
   />   -->
-  <node
+  <!-- <node
     pkg="spinnaker_camera_driver"
     type="Acquisition"
     name="Acquisition"
     output="screen"
-  /> 
+  />  -->
   
 </launch> 
