@@ -51,8 +51,11 @@ public:
     std::vector<int> markerIds;
     std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
     const cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
-    cv::aruco::detectMarkers(current_frame, dictionary, markerCorners, markerIds); //  cv::aruco::detectMarkers(current_frame, dictionary, markerCorners, markerIds); //
-    // cv::aruco::drawDetectedMarkers(current_frame, markerCorners, markerIds); 
+    cv::Mat cropped_frame(current_frame, Rect(0,0, 1440,1080)); //Width 1440, Height 1080. FPS starts to drop off at 900X900
+    cv::aruco::detectMarkers(cropped_frame, dictionary, markerCorners, markerIds); //  cv::aruco::detectMarkers(current_frame, dictionary, markerCorners, markerIds); //
+    cv::aruco::drawDetectedMarkers(current_frame, markerCorners, markerIds); 
+    cv::imshow("view",cropped_frame); 
+    cv::waitKey(1);
 
     //Calculate pose of marker where rvecs is rotation and tvecs is translation with respect to the camera lens
     std::vector<cv::Vec3d> rvecs, tvecs;
@@ -75,6 +78,7 @@ public:
     }
 
     pub_.publish(position);
+
 
   }
 

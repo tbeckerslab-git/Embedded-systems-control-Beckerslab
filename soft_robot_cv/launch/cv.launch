@@ -1,10 +1,15 @@
 <launch>
   <!-- <include file="$(find spinnaker_camera_driver)/launch/default_camera.launch" /> -->
-  <include file="$(find spinnaker_camera_driver)/launch/camera23156987.launch" />
-  <include file="$(find spinnaker_camera_driver)/launch/camera23141921.launch" />
-  <!-- <include file="$(find spinnaker_camera_driver)/launch/camera23141922.launch" /> -->
 
-  <!-- <include file="$(find soft_robot_cv)/src/Spinnaker2CVmat.cpp" /> -->
+  <remap from="/camera/image_raw" to="/camera1/image_raw" />
+  <include file="$(find spinnaker_camera_driver)/launch/camera23156987.launch" />
+
+  <remap from="/camera/image_raw" to="/camera2/image_raw" />
+  <include file="$(find spinnaker_camera_driver)/launch/camera23141921.launch" />
+
+  <remap from="/camera/image_raw" to="/camera3/image_raw" />
+  <include file="$(find spinnaker_camera_driver)/launch/camera23141922.launch" />
+
 
   <!-- <node
     pkg="soft_robot_cv"
@@ -36,18 +41,36 @@
     name="mosse_class"
     output="screen"
   />  -->
+
+  <remap from="/position" to="/position1" />
+  <remap from="/camera/image_raw" to="/camera1/image_raw" />
   <node
     pkg="soft_robot_cv"
     type="aruco"
-    name="aruco"
+    name="aruco1"
     output="screen"
+
   /> 
-  <!-- <node
+
+  <remap from="/position" to="/position2" />
+  <remap from="/camera/image_raw" to="/camera2/image_raw" />
+  <node
     pkg="soft_robot_cv"
-    type="aruco2"
+    type="aruco"
     name="aruco2"
     output="screen"
-  />  -->
+  /> 
+
+  <remap from="/position" to="/position3" />
+  <remap from="/camera/image_raw" to="/camera3/image_raw" />
+  <node
+    pkg="soft_robot_cv"
+    type="aruco"
+    name="aruco3"
+    output="screen"
+  /> 
+
+
    <!-- <node
     pkg="soft_robot_cv"
     type="video_cap"
