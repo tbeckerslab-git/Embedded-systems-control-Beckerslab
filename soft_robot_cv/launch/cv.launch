@@ -1,8 +1,7 @@
 <launch>
-  <!-- <include file="$(find spinnaker_camera_driver)/launch/default_camera.launch" /> -->
-
+  <!-- Start each camera using ROS Spinnaker drivers /> -->
   <remap from="/camera/image_raw" to="/camera1/image_raw" />
-  <include file="$(find spinnaker_camera_driver)/launch/camera23156987.launch" />
+  <include file="$(find spinnaker_camera_driver)/launch/camera23156987.launch" /> <!-- The number after "camera" corresponds to the inital serial number that will be connected-->
 
   <remap from="/camera/image_raw" to="/camera2/image_raw" />
   <include file="$(find spinnaker_camera_driver)/launch/camera23141921.launch" />
@@ -11,45 +10,15 @@
   <include file="$(find spinnaker_camera_driver)/launch/camera23141922.launch" />
 
 
-  <!-- <node
-    pkg="soft_robot_cv"
-    type="webcam_pub"
-    name="webcam_pub"
-    output="screen"
-  /> -->
-  <!-- <node
-    pkg="soft_robot_cv"
-    type="webcam_sub"
-    name="webcam_sub"
-    output="screen"
-  /> -->
-  <!-- <node
-    pkg="soft_robot_cv"
-    type="opencv_sub"
-    name="opencv_sub"
-    output="screen"
-  />  -->
- <!-- <node
-    pkg="soft_robot_cv"
-    type="webcam_circles"
-    name="webcam_circles"
-    output="screen"
-  /> -->
-  <!-- <node
-    pkg="soft_robot_cv"
-    type="mosse_class"
-    name="mosse_class"
-    output="screen"
-  />  -->
-
+  <!--  Use ROS remapping to create unique topic names for each camera -->
   <remap from="/position" to="/position1" />
   <remap from="/camera/image_raw" to="/camera1/image_raw" />
+  <!-- Launch the aruco node that detects and publishes the position of the aruo marker /> -->
   <node
     pkg="soft_robot_cv"
     type="aruco"
     name="aruco1"
     output="screen"
-
   /> 
 
   <remap from="/position" to="/position2" />
@@ -69,19 +38,5 @@
     name="aruco3"
     output="screen"
   /> 
-
-
-   <!-- <node
-    pkg="soft_robot_cv"
-    type="video_cap"
-    name="video_cap"
-    output="screen"
-  />   -->
-  <!-- <node
-    pkg="spinnaker_camera_driver"
-    type="Acquisition"
-    name="Acquisition"
-    output="screen"
-  />  -->
   
 </launch> 
