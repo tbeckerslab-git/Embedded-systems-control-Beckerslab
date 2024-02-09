@@ -1,7 +1,0 @@
-﻿  Spinnaker2CVmat.cpp
-c:\users\edwardw\documents\spinnaker2cvmat\spinnaker2cvmat\spinnaker2cvmat\spinnaker2cvmat\spinnaker2cvmat.cpp(186): warning C4267: 'initializing': conversion from 'size_t' to 'unsigned int', possible loss of data
-c:\users\edwardw\documents\spinnaker2cvmat\spinnaker2cvmat\spinnaker2cvmat\spinnaker2cvmat\spinnaker2cvmat.cpp(187): warning C4267: 'initializing': conversion from 'size_t' to 'unsigned int', possible loss of data
-c:\users\edwardw\documents\spinnaker2cvmat\spinnaker2cvmat\spinnaker2cvmat\spinnaker2cvmat\spinnaker2cvmat.cpp(188): warning C4267: 'initializing': conversion from 'size_t' to 'unsigned int', possible loss of data
-c:\users\edwardw\documents\spinnaker2cvmat\spinnaker2cvmat\spinnaker2cvmat\spinnaker2cvmat\spinnaker2cvmat.cpp(189): warning C4267: 'initializing': conversion from 'size_t' to 'unsigned int', possible loss of data
-  Spinnaker2CVmat.vcxproj -> C:\Users\EdwardW\Documents\Spinnaker2CVMat\Spinnaker2CVMat\Spinnaker2CVmat\x64\Debug\Spinnaker2CVmat.exe
-  Spinnaker2CVmat.vcxproj -> C:\Users\EdwardW\Documents\Spinnaker2CVMat\Spinnaker2CVMat\Spinnaker2CVmat\x64\Debug\Spinnaker2CVmat.pdb (Full PDB)
