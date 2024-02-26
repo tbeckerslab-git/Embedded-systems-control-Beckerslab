@@ -52,12 +52,6 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
   cv::Mat objPoints(4, 1, CV_32FC3);
   cv::aruco::estimatePoseSingleMarkers(markerCorners, 0.078, cameraMatrix, distCoeffs, rvecs, tvecs, objPoints); //Marker side length is 0.078 meters
   
-  for (auto elem : tvecs) {
-    cout << elem << ", ";
-  }
-
-  cout << endl;
-  
   // cv::drawFrameAxes(current_frame, cameraMatrix, distCoeffs, rvecs, tvecs, 0.1);
   // cout << objPoints << endl;
   // std::vector<cv::Vec3d> rvecs, tvecs;
@@ -86,8 +80,14 @@ int main(int argc, char **argv)
     //Initialize the aruco marker
     cv::Mat markerImage;
     const cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
-    cv::aruco::drawMarker(dictionary, 10, 200, markerImage, 1);
-    cv::imshow("marker", markerImage);
+    cv::aruco::drawMarker(dictionary, 11, 200, markerImage, 1);
+    cv::imshow("marker1", markerImage);
+    cv::aruco::drawMarker(dictionary, 12, 200, markerImage, 1);
+    cv::imshow("marker2", markerImage);
+    cv::aruco::drawMarker(dictionary, 13, 200, markerImage, 1);
+    cv::imshow("marker3", markerImage);
+    cv::aruco::drawMarker(dictionary, 14, 200, markerImage, 1);
+    cv::imshow("marker4", markerImage);
     
     // The name of the node
     ros::init(argc, argv, "frame_listener");
