@@ -8,10 +8,10 @@
 #elif defined(_WIN32) || defined(_WIN64)
 #endif
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <dynamixel_sdk.h>
 #include <iostream> // user input library
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h> // Used with usleep
 
 // Function prototypes can be declared here.
