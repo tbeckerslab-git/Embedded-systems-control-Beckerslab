@@ -10,7 +10,8 @@
                 "/opt/ros/noetic/include/**",
                 "/usr/include/**",
                 "/usr/include/opencv4",
-                "${workspaceFolder}/DynamixelSDK/c++/include/dynamixel_sdk"
+                "${workspaceFolder}/DynamixelSDK/c++/include/dynamixel_sdk",
+                "/opt/**"
             ],
             "name": "ROS",
             "intelliSenseMode": "gcc-x64",
