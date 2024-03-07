@@ -1,5 +1,6 @@
 <launch>
   <!-- Start each camera using ROS Spinnaker drivers /> -->
+  <!--  Use ROS remapping to create unique topic names for each camera -->
   <!-- The number after "camera"  in the .launch corresponds to the inital serial number that will be connected-->
   <remap from="/camera/image_raw" to="/camera1/image_raw" />
   <include file="$(find spinnaker_camera_driver)/launch/camera23156987.launch" /> 
@@ -11,7 +12,7 @@
   <include file="$(find spinnaker_camera_driver)/launch/camera23141922.launch" />
 
 
-  <!--  Use ROS remapping to create unique topic names for each camera -->
+  <!--  Use ROS remapping to use the unique topic names for each camera -->
   <remap from="/position" to="/position1" />
   <remap from="/camera/image_raw" to="/camera1/image_raw" />
   <!-- Launch the aruco node that detects and publishes the position of the aruo marker /> -->
