@@ -1,7 +1,8 @@
 <launch>
   <!-- Start each camera using ROS Spinnaker drivers /> -->
+  <!-- The number after "camera"  in the .launch corresponds to the inital serial number that will be connected-->
   <remap from="/camera/image_raw" to="/camera1/image_raw" />
-  <include file="$(find spinnaker_camera_driver)/launch/camera23156987.launch" /> <!-- The number after "camera" corresponds to the inital serial number that will be connected-->
+  <include file="$(find spinnaker_camera_driver)/launch/camera23156987.launch" /> 
 
   <remap from="/camera/image_raw" to="/camera2/image_raw" />
   <include file="$(find spinnaker_camera_driver)/launch/camera23141921.launch" />
