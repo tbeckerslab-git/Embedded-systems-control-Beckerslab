@@ -55,7 +55,7 @@ public:
     const cv::Ptr<cv::aruco::Dictionary> dictionary =
         cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
     cv::Mat cropped_frame(
-        current_frame, Rect(0, 0, 1440, 1080)); // Width 1440, Height 1080. FPS
+        current_frame, Rect(0, 0, 1440, 1080)); // Originally Width 1440, Height 1080. FPS
                                                 // starts to drop off at 900X900
     cv::aruco::detectMarkers(cropped_frame, dictionary, markerCorners,
                              markerIds);
