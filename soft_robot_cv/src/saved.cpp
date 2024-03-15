@@ -15,20 +15,20 @@ public:
   void imageCallback(const sensor_msgs::ImageConstPtr &msg) {
     // Initialize camera and distortion parameters
     // FIXME: recalibrate camera and get correct matrices
-    // float data[9] = {1.05326155e+03,
-    //                  0.00000000e+00,
-    //                  6.72839741e+02,
-    //                  0.00000000e+00,
-    //                  1.05471479e+03,
-    //                  3.55441462e+02,
-    //                  0,
-    //                  0,
-    //                  1.00000000e+00};
-    // cv::Mat cameraMatrix = cv::Mat(3, 3, CV_32F, data);
+    float data[9] = {1.05326155e+03,
+                     0.00000000e+00,
+                     6.72839741e+02,
+                     0.00000000e+00,
+                     1.05471479e+03,
+                     3.55441462e+02,
+                     0,
+                     0,
+                     1.00000000e+00};
+    cv::Mat cameraMatrix = cv::Mat(3, 3, CV_32F, data);
 
-    // float data2[5] = {0.09004139, -0.29306343, -0.00608111, 0.00926377,
-    //                   0.2020092};
-    // cv::Mat distCoeffs = cv::Mat(1, 5, CV_32F, data2);
+    float data2[5] = {0.09004139, -0.29306343, -0.00608111, 0.00926377,
+                      0.2020092};
+    cv::Mat distCoeffs = cv::Mat(1, 5, CV_32F, data2);
 
     // Pointer used for the conversion from a ROS message to
     // an OpenCV-compatible image
@@ -91,48 +91,6 @@ public:
     // Topic you want to publish
     pub_ = n_.advertise<geometry_msgs::Point>("/position", 1);
 
-    std::string topicName = pub_.getTopic();
-
-    
-    if (topicName == "/position1"){
-        n_.getParam("/camera1_matrix/data", data);
-        float* tmp;
-        tmp = data.data();
-        cameraMatrix = cv::Mat(3, 3, CV_32F, tmp);
-
-        n_.getParam("/distortion1_coefficients/data", data2);
-        float* tmp2;
-        tmp2 = data2.data();
-        distCoeffs = cv::Mat(3, 3, CV_32F, tmp2);
-
-    } if (topicName == "/position2"){
-        n_.getParam("/camera2_matrix/data", data);
-        float* tmp;
-        tmp = data.data();
-        cameraMatrix = cv::Mat(3, 3, CV_32F, tmp);
-
-        n_.getParam("/distortion2_coefficients/data", data2);
-        float* tmp2;
-        tmp2 = data2.data();
-        distCoeffs = cv::Mat(3, 3, CV_32F, tmp2);
-
-    } if (topicName == "/position3"){
-        n_.getParam("/camera3_matrix/data", data);
-        float* tmp;
-        tmp = data.data();
-        cameraMatrix = cv::Mat(3, 3, CV_32F, tmp);
-
-        n_.getParam("/distortion3_coefficients/data", data2);
-        float* tmp2;
-        tmp2 = data2.data();
-        distCoeffs = cv::Mat(3, 3, CV_32F, tmp2);
-
-    } else {
-        cameraMatrix = cv::Mat::eye(3, 3, CV_32F);
-        distCoeffs = cv::Mat::eye(3, 3, CV_32F);
-    }
-
-
     // Topic you want to subscribe
     // FIXME: n_.subscribe should be it.subscribe. Figure out why it'ss throwing
     // an error
@@ -146,11 +104,6 @@ private:
   ros::NodeHandle n_;
   ros::Publisher pub_;
   ros::Subscriber sub_;
-  std::vector<float> data;
-  cv::Mat cameraMatrix;
-  std::vector<float> data2;
-  cv::Mat distCoeffs;
-
 
 }; // End of class SubscribeAndPublish
 
