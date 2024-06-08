@@ -1,6 +1,6 @@
 # coding: utf8
 import Sofa.Core
-import rospy
+import rospy 
 from std_msgs.msg import Float32MultiArray
 
 class RosSender(Sofa.Core.Controller):

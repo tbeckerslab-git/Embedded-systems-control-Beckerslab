@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import rospy
+import rospy 
 from std_msgs.msg import Float32MultiArray
 import sys
 
