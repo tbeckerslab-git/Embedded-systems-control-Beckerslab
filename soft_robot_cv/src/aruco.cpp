@@ -80,8 +80,10 @@ int main(int argc, char **argv)
     //Initialize the aruco marker
     cv::Mat markerImage;
     const cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
-    cv::aruco::drawMarker(dictionary, 0, 200, markerImage, 1);
+    cv::aruco::drawMarker(dictionary, 11, 200, markerImage, 1);
     cv::imshow("marker1", markerImage);
+    cv::waitKey(30);
+    std::cout << "Here";
     // cv::aruco::drawMarker(dictionary, 12, 200, markerImage, 1);
     // cv::imshow("marker2", markerImage);
     // cv::aruco::drawMarker(dictionary, 13, 200, markerImage, 1);
@@ -92,18 +94,18 @@ int main(int argc, char **argv)
     // The name of the node
     ros::init(argc, argv, "frame_listener");
     
-    // Default handler for nodes in ROS
-    ros::NodeHandle nh;
+    // // Default handler for nodes in ROS
+    // ros::NodeHandle nh;
     
-    // Used to publish and subscribe to images
-    image_transport::ImageTransport it(nh); 
-    // Subscribe to the /camera topic
-    image_transport::Subscriber sub = it.subscribe("camera", 1, imageCallback);
+    // // Used to publish and subscribe to images
+    // image_transport::ImageTransport it(nh); 
+    // // Subscribe to the /camera topic
+    // image_transport::Subscriber sub = it.subscribe("camera", 1, imageCallback);
 
-    // Make sure we keep reading new video frames by calling the imageCallback function
+    // // Make sure we keep reading new video frames by calling the imageCallback function
     ros::spin();
     
-    // Close down OpenCV
-    cv::destroyWindow("view");
+    // // Close down OpenCV
+    // cv::destroyWindow("view");
 
 }

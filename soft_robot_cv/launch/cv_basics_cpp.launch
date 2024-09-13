@@ -1,11 +1,11 @@
 <launch>
   <!-- <include file="$(find spinnaker_camera_driver)/launch/camera.launch" /> -->
-  <node
+  <!-- <node
     pkg="soft_robot_cv"
     type="webcam_pub"
     name="webcam_pub"
     output="screen"
-  />
+  /> -->
   <!-- <node
     pkg="soft_robot_cv"
     type="webcam_sub"
