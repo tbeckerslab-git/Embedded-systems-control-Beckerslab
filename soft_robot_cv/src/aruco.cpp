@@ -7,6 +7,8 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/aruco.hpp>
 
+#include <yaml-cpp/yaml.h>
+
 using namespace cv;
 using namespace std;
 
@@ -19,11 +21,11 @@ public:
   {
     //Initialize camera and distortion parameters
     //FIXME: recalibrate camera and get correct matrices
-    float data[9] = { 1.05326155e+03, 0.00000000e+00, 6.72839741e+02, 0.00000000e+00, 1.05471479e+03, 3.55441462e+02, 0, 0, 1.00000000e+00};
-    cv::Mat cameraMatrix = cv::Mat(3, 3, CV_32F, data);
+    // float data[9] = { 1.05326155e+03, 0.00000000e+00, 6.72839741e+02, 0.00000000e+00, 1.05471479e+03, 3.55441462e+02, 0, 0, 1.00000000e+00};
+    // cv::Mat cameraMatrix = cv::Mat(3, 3, CV_32F, data);
 
-    float data2[5] = { 0.09004139, -0.29306343, -0.00608111, 0.00926377, 0.2020092};
-    cv::Mat distCoeffs = cv::Mat(1, 5, CV_32F, data2);
+    // float data2[5] = { 0.09004139, -0.29306343, -0.00608111, 0.00926377, 0.2020092};
+    // cv::Mat distCoeffs = cv::Mat(1, 5, CV_32F, data2);
   
     // Pointer used for the conversion from a ROS message to 
     // an OpenCV-compatible image
@@ -94,11 +96,16 @@ public:
     //FIXME: n_.subscribe should be it.subscribe. Figure out why it'ss throwing an error
     sub_ = n_.subscribe("/camera/image_raw", 1, &SubscribeAndPublish::imageCallback, this);
   }
+public:
+  cv::Mat cameraMatrix;
+  cv::Mat distCoeffs;
+
 
 private:
   ros::NodeHandle n_; 
   ros::Publisher pub_;
   ros::Subscriber sub_;
+  
 
 };//End of class SubscribeAndPublish
 
@@ -116,6 +123,25 @@ int main(int argc, char **argv)
 
     //Create an object of class SubscribeAndPublish that will take care of everything
     SubscribeAndPublish SAPObject;
+
+    if (ros::param::get("/camera_matrix/data", cameraMatRead)){
+      cameraMatrix = cv::Mat(3, 3, CV_32F, cameraMatRead);
+      
+
+    } else {
+      std::cerr << "Error parsing YAML file: " << std::endl;
+      SAPObject.cameraMatrix = cv::Mat::eye(3, 3, CV_32F);
+    }
+
+    if (ros::param::get("/distortion_coefficients/data", distCoeffRead)){
+      distCoeffs = cv::Mat(1, 5, CV_32F, distCoeffRead);
+
+    } else {
+      std::cerr << "Error parsing YAML file: " << std::endl;
+      SAPObject.distCoeffs = cv::Mat::eye(3, 3, CV_32F);
+    }
+
+
 
     // Make sure we keep reading new video frames by calling the imageCallback function
     ros::spin();
