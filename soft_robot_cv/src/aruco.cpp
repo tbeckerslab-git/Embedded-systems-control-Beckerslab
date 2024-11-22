@@ -17,7 +17,7 @@ using namespace std;
 class SubscribeAndPublish {
 public:
   /**
-   * Fuynction called every time the subscriber recognizes a new image
+   * Function called every time the subscriber recognizes a new image
    */
   void imageCallback(const sensor_msgs::ImageConstPtr &msg) {
     // Pointer used for the conversion from a ROS message to
@@ -56,24 +56,29 @@ public:
     // Calculate pose of marker where rvecs is rotation and tvecs is translation
     // with respect to the camera lens
 
-    // std::vector<cv::Vec3d> rvecs, tvecs;
-    // cv::Mat objPoints(4, 1, CV_32FC3);
+    std::vector<cv::Vec3d> rvecs, tvecs;
+    cv::Mat objPoints(4, 1, CV_32FC3);
 
-    // cv::aruco::estimatePoseSingleMarkers(
-    //     markerCorners, 0.078, cameraMatrix, distCoeffs, rvecs, tvecs,
-    //     objPoints); // Marker side length is 0.078 meters
+    cv::aruco::estimatePoseSingleMarkers(
+        markerCorners, 0.078, cameraMatrix, distCoeffs, rvecs, tvecs,
+        objPoints); // Marker side length is 0.078 meters
 
-    // // Create and publish position message
-    // geometry_msgs::Point position;
+    // Create and publish position message
+    geometry_msgs::Point position;
 
-    // for (auto elem : tvecs) {
-    //   position.x = elem[0];
-    //   position.y = elem[1];
-    //   position.z = elem[2];
-    // }
+    for (auto elem : tvecs) {
+      position.x = elem[0];
+      position.y = elem[1];
+      position.z = elem[2];
+    }
 
-    // pub_.publish(position);
-  }  
+    pub_.publish(position);
+  }
+
+  // void setCamInfo(const sensor_msgs::CameraInfo& msg){
+  //     // std::cout << *msg <<std::endl;
+  // }
+  
 
   SubscribeAndPublish() {
     // Used to publish and subscribe to images
@@ -86,18 +91,21 @@ public:
     std::string topicName = pub_.getTopic(); 
     std::string cameraIndex = topicName.substr(9, 1);
 
-    //Load in camera config data
+    // Load in camera config data
     // n_.getParam("/camera" + cameraIndex + "_matrix/data", data);
     // float* tmp;
     // tmp = data.data();
     // cameraMatrix = cv::Mat(3, 3, CV_32F, tmp);
+
+
+    
+
 
     // n_.getParam("/distortion" + cameraIndex + "_coefficients/data", data2);
     // float* tmp2;
     // tmp2 = data2.data();
     // distCoeffs = cv::Mat(3, 3, CV_32F, tmp2);
 
-    // std::cout << cameraMatrix << std::endl;
     // std::cout << distCoeffs << std::endl;
 
 
@@ -107,6 +115,13 @@ public:
     sub_ = n_.subscribe("/camera" + cameraIndex + "/image_raw", 1,
                         &SubscribeAndPublish::imageCallback, this);
 
+    // const std::string camInfoTopic = "/camera" + cameraIndex + "/camera_info";
+    // auto camInfo = ros::topic::waitForMessage<sensor_msgs::CameraInfo>(camInfoTopic);
+    
+    // data = camInfo -> K;
+    // data2 = camInfo -> D
+    // data2 = camInfo.data.D;
+    // cameraMatrix = cv::Mat(3, 3, CV_64F, &(camInfo -> K));
     
   }
 
@@ -115,10 +130,9 @@ private:
   ros::Publisher pub_; //Publishes position data
   ros::Subscriber sub_; //Subscribes to image feed
   std::vector<float> data; //intermediary vector for loading cameraMatrix data from file
-  cv::Mat cameraMatrix; //3x3 matrix
+  cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_32F);; //3x3 matrix
   std::vector<float> data2; //intermediary vector for loading distCoeffs data from file
-  cv::Mat distCoeffs; //1X5 vector
-
+  cv::Mat distCoeffs = cv::Mat::zeros(1, 5, CV_32F); //1X5 vector
 
 }; // End of class SubscribeAndPublish
 
