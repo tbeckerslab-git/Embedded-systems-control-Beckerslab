@@ -1,0 +1,20 @@
+<launch>
+    <!-- Specify the topic to subscribe to -->
+
+    <include file="$(find spinnaker_camera_driver)/launch/camera23156987.launch" /> <!-- The number after "camera" corresponds to the inital serial number that will be connected-->
+   
+
+   <!-- Argument to specify the image topic -->
+   <arg name="image_topic" default="/camera/image_raw" />
+  <remap from="/image" to="/camera/image_raw" />
+  <!-- Argument to specify the output video file -->
+  <arg name="filename" default="/home/user/avi_files/test.avi" />
+  <arg name="fps" default="240" />
+
+  <!-- Node to launch image_view -->
+  <node pkg="image_view" type="video_recorder" name="video_recorder" output="screen">
+    <param name="image" value="$(arg image_topic)" />
+    <param name="filename" value="$(arg filename)" />
+    <param name="fps" value="$(arg fps)" />
+  </node>
+</launch>
