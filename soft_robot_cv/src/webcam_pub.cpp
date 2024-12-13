@@ -26,7 +26,7 @@ int main(int argc, char** argv)
     image_transport::ImageTransport it(nh);
      
     // Publish to the /camera topic
-    image_transport::Publisher pub_frame = it.advertise("camera", 1);
+    image_transport::Publisher pub_frame = it.advertise("camera/image_raw", 1);
      
     cv::Mat frame;//Mat is the image class defined in OpenCV
     sensor_msgs::ImagePtr msg;

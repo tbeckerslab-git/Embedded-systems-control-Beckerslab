@@ -1,0 +1,20 @@
+<launch>
+
+  <!--  Use ROS remapping to use the unique topic names for each camera -->
+  <!-- <remap from="/position" to="/position1" />
+  <remap from="/camera/image_raw" to="/camera1/image_raw" /> -->
+  <!-- Launch the aruco node that detects and publishes the position of the aruo marker /> -->
+
+  <node
+    pkg="soft_robot_cv"
+    type="aruco"
+    name="aruco1"
+    output="screen"
+  /> 
+
+  <!-- <param name="startSofa" command="/home/glorbs/sofa/build/bin/runSofa /home/glorbs/sofa/external_directories/SofaSoftGripper/src/gripper/gripper_scene.py
+" output="screen" /> -->
+  
+
+  
+</launch> 
