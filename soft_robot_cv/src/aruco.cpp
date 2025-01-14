@@ -1,11 +1,14 @@
 #include <cv_bridge/cv_bridge.h>
-#include <geometry_msgs/Point.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <ros/ros.h>
 
 #include <opencv2/aruco.hpp>
 #include <opencv2/opencv.hpp>
+
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl-1.10/pcl/point_cloud.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 using namespace cv;
 using namespace std;
@@ -45,25 +48,33 @@ public:
     cv::imshow("view", current_frame);
     cv::waitKey(1);
 
-    // // Calculate pose of marker where rvecs is rotation and tvecs is translation
-    // // with respect to the camera lens
-    // std::vector<cv::Vec3d> rvecs, tvecs;
-    // cv::Mat objPoints(4, 1, CV_32FC3);
+    // Calculate pose of marker where rvecs is rotation and tvecs is translation
+    // with respect to the camera lens
+    std::vector<cv::Vec3d> rvecs, tvecs;
 
-    // cv::aruco::estimatePoseSingleMarkers(
-    //     markerCorners, 0.078, cameraMatrix, distCoeffs, rvecs, tvecs,
-    //     objPoints); // Marker side length is 0.078 meters
+    cv::aruco::estimatePoseSingleMarkers(
+        markerCorners, 8.0, cameraMatrix, distCoeffs, rvecs, tvecs); // Marker side length is 0.078 meters
 
-    // // Create and publish position message
-    // geometry_msgs::Point position;
+    pcl::PointCloud<pcl::PointXYZ> positions;
+    positions.width = 11; // Number of points
+    positions.height = 1; // Unorganized point cloud
+    positions.is_dense = false;
+    positions.points.resize(positions.width * positions.height); 
 
-    // for (auto elem : tvecs) {
-    //   position.x = elem[0];
-    //   position.y = elem[1];
-    //   position.z = elem[2];
-    // }
+    for (uint32_t i = 0; i < tvecs.size(); ++i){
+        cv::Mat world_coord;
+        cv::Mat camera_vec = (cv::Mat_<double>(4, 1) << tvecs[i][0], tvecs[i][1], tvecs[i][2], 1.0);
+        cv::gemm(transform, camera_vec, 1.0, cv::Mat(), 0, world_coord);
 
-    // pub_.publish(position);
+        positions[markerIds[i]].x = static_cast<float>(world_coord.at<double>(0, 0));
+        positions[markerIds[i]].y = static_cast<float>(world_coord.at<double>(1, 0));
+        positions[markerIds[i]].z = static_cast<float>(world_coord.at<double>(2, 0));
+    }
+
+    sensor_msgs::PointCloud2 positions_msg;
+    pcl::toROSMsg(positions, positions_msg);
+    positions_msg.header.frame_id = "map";
+    pub_.publish(positions_msg);
   }
 
   SubscribeAndPublish() {
@@ -71,10 +82,10 @@ public:
     image_transport::ImageTransport it(n_);
 
     // Topic you want to publish
-    pub_ = n_.advertise<geometry_msgs::Point>("/position", 1);
+    pub_ = n_.advertise<sensor_msgs::PointCloud2>("/positions", 10);
 
     cameraMatrix = cv::Mat::eye(3, 3, CV_32F);
-    distCoeffs = cv::Mat::eye(3, 3, CV_32F);
+    distCoeffs = cv::Mat::zeros(1, 5, CV_32F);
 
 
     // Topic you want to subscribe
@@ -94,7 +105,12 @@ private:
   cv::Mat cameraMatrix;
   std::vector<float> data2;
   cv::Mat distCoeffs;
-
+  cv::Mat transform = (cv::Mat_<double>(4, 4) << 
+    1.0, 0.0, 0.0, -127.39999999999996,
+    0.0, -1.0, 0.0, 79.59999999999997,
+    0.0, 0.0, -1.0, 0.19999999999999993,
+    0.0, 0.0, 0.0, 1.0);
+  uint32_t numPoints = 1;
 
 }; // End of class SubscribeAndPublish
 

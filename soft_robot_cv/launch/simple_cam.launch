@@ -8,7 +8,14 @@
   <node
     pkg="soft_robot_cv"
     type="aruco"
-    name="aruco1"
+    name="aruco_detect"
+    output="screen"
+  /> 
+
+  <node
+    pkg="soft_robot_cv"
+    type="example_position_reader"
+    name="reader"
     output="screen"
   /> 
 

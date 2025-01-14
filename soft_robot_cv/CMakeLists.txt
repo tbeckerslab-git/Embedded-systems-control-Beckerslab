@@ -212,6 +212,13 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
+find_package(PCL REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
+include_directories(/usr/include/eigen3)
+
 add_executable(webcam_pub src/webcam_pub.cpp)
 target_link_libraries(webcam_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})	
 add_executable(webcam_sub src/webcam_sub.cpp)
@@ -223,4 +230,6 @@ target_link_libraries(webcam_sub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_executable(mosse_class src/mosse_class.cpp)
 target_link_libraries(mosse_class ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_executable(aruco src/aruco.cpp)
-target_link_libraries(aruco ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(aruco ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(example_position_reader src/example_position_reader.cpp)
+target_link_libraries(example_position_reader ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
