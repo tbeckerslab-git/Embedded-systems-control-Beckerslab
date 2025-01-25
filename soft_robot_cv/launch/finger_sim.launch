@@ -11,6 +11,12 @@
     name="aruco_detect"
     output="screen"
   /> 
+  <node
+    pkg="soft_robot_cv"
+    type="example_actuator.py"
+    name="example_actuator"
+    output="screen"
+  /> 
 
   <node
     pkg="soft_robot_cv"
