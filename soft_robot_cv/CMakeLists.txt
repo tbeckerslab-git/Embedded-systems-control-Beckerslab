@@ -231,8 +231,11 @@ target_link_libraries(webcam_sub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 # target_link_libraries(webcam_circles ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_executable(mosse_class src/mosse_class.cpp)
 target_link_libraries(mosse_class ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
 add_executable(aruco src/aruco.cpp)
 target_link_libraries(aruco ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
+
+
 add_executable(example_position_reader src/example_position_reader.cpp)
 target_link_libraries(example_position_reader ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(torque_actuator motor/torque_actuator.cpp)

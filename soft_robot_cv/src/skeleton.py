@@ -112,7 +112,7 @@ class Nodo(object):
         self.loop_rate = rospy.Rate(1)
 
         # Publishers
-        self.pub = rospy.Publisher('/positions', Int16, queue_size=10)
+        self.pub = rospy.Publisher('/positions', PointCloud2, queue_size=10)
 
         # Subscribers
         rospy.Subscriber("/camera/image_color", Image, self.callback)
@@ -129,8 +129,21 @@ class Nodo(object):
         self.reference_points = None
         # Store downsampled and aligned center points coordinates for each frame
         self.aligned_center_points = []
+        self.distortion_coeffs = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        self.camera_matrix = np.array([[1.0,  0.0, 0.0],
+                                        [ 0.0, 1.0, 0.0],
+                                        [ 0.0,  0.0,  1.0]])
+        self.rotation = np.array([[1.0, 0.0, 0.0],
+                                    [0.0, -1.0, 0.0],
+                                    [0.0, 0.0, -1.0]])
+
+        self.translation = np.array([0.0, 0.0, 0.0])
+        self.inverse_K = np.linalg.inv(self.camera_matrix)
+        self.inverse_rotation = np.linalg.inv(self.rotation)
+        self.world = []
 
     def callback(self, msg):
+        # Convert the ROS message into an OpenCV matrix
         self.image = self.br.imgmsg_to_cv2(msg)
 
         # Create a mask for the red color
@@ -164,34 +177,38 @@ class Nodo(object):
             _, indices = tree.query(self.reference_points)
             self.reference_points = skeleton_coords[indices]
 
-        # Store aligned center points for the current frame
-        self.aligned_center_points.append(self.reference_points.tolist())
-
-        # Draw the consistent downsampled centerline points on the original frame
-        downsampled_frame = self.image.copy()
-        for x, y in self.reference_points:
-            cv2.circle(downsampled_frame, (y, x), 3, (0, 255, 0), -1)  # Draw the points as small green circles
-
-        # Display the frames (optional, can slow down processing)
-        # skeleton = skeleton.astype(np.uint8) * 255
-        # cv2.imshow('Skeleton Frame', skeleton)
-        # cv2.imshow('Downsampled Centerline Points Frame', downsampled_frame)
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     cv2.destroyAllWindows()
+        # # Store aligned center points for the current frame
+        # self.aligned_center_points.append(self.reference_points.tolist()) #Refactor to get 3d coords
+        ref_points = np.array(self.reference_points)
+        homogeneous_points = np.hstack((ref_points, np.ones((ref_points.shape[0], 1), dtype=ref_points.dtype)))
+        # self.aligned_center_points.append(homogeneous_points.tolist())
+        self.aligned_center_points  = homogeneous_points.tolist()
 
 
-    #     fields = [
-    #     PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
-    #     PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
-    #     PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1)
-    # ]
+        # print(len(self.aligned_center_points))
+        for pixel_coord in self.aligned_center_points:
+            cam_coords = self.inverse_K @ pixel_coord
+            # Assuming world Z = 0 (flat surface assumption)
+            s = 1 #(0 - self.translation[2]) / (self.rotation[2] @ cam_coords)  # Scale factor
+
+            world_coords = self.inverse_rotation @ (s * cam_coords - self.translation)
+            self.world .append(world_coords)
+
+        # Convert the pixel coordinates into world coordinates
+
+        fields = [
+        PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
+        PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
+        PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1)
+    ]
         
-    #     header = rospy.Header()
-    #     header.stamp = rospy.Time.now()
-    #     header.frame_id = 'map' # Replace 'map' with your desired frame ID
+        header = rospy.Header()
+        header.stamp = rospy.Time.now()
+        header.frame_id = 'map' # Replace 'map' with your desired frame ID
         
-    #     pc2_msg = pc2.create_cloud(header, fields, points)
-        print(self.aligned_center_points)
+        pc2_msg = pc2.create_cloud(header, fields, self.world)
+        self.pub.publish(pc2_msg)
+        self.world = []
 
 
 if __name__ == '__main__':
@@ -200,141 +217,3 @@ if __name__ == '__main__':
     rospy.spin()
 
     cv2.destroyAllWindows()
-
-        # #Sort by list
-        # for frame_index, points in enumerate(aligned_center_points):
-        #     temp_lst = []
-        #     for point in points:
-        #         temp = point[0]
-        #         point[0] = point[1]
-        #         point[1] = temp
-        #         temp_lst.append(point)
-        #     temp_lst = np.array(temp_lst)
-
-
-
-        #     # Sort the array by the first coordinate (x-coordinate after swapping)
-        #     point_sort = temp_lst[temp_lst[:, 0].argsort()]
-
-        #     # If you need to store or further use sorted points for each frame, you can do so here
-        #     aligned_center_points[frame_index] = point_sort.tolist()
-
-
-
-    # pts_movements = []
-    # with open('aligned_center_points.txt', 'w') as file:
-    #     for frame_index, points in enumerate(aligned_center_points):
-    #         file.write(f"Frame {frame_index + 1}:\n")
-    #         pts_frame = []
-    #         for point in points:
-    #             # temp = point[0]
-
-    #             # point[0] = point[1]
-
-    #             # point[1] = temp
-
-    #             file.write(f"{point}\n")
-
-    #             # point = point.tolist()
-
-    #             point.insert(2, frame_index)  # x coordinate
-
-    #             pts_frame.append(point)
-
-    #         file.write("\n")
-
-    #         pts_movements.append(pts_frame)
-
-
-    #     points_data = np.array(pts_movements)
-
-    #     x_to_mat = []
-    #     y_to_mat = []
-    #     z_to_mat = []
-
-    #     for i in range(points_data.shape[0]):
-    #         string = points_data[i][:, :]
-    #         # string_sort = string[string[:, 0].argsort()]
-    #         x_to_mat.append(string[:, 0])
-    #         y_to_mat.append(string[:, 1])
-    #         z_to_mat.append(string[:, 2])
-    #         # horizontal = string_sort[:, 0]
-    #         # vertical = string_sort[:, 1]
-
-    #     # Convert lists to numpy arrays
-    #     x = np.array(x_to_mat).flatten()
-    #     y = np.array(y_to_mat).flatten()
-    #     z = np.array(z_to_mat).flatten()
-
-
-
-    #     # Save data to a .mat file
-    #     savemat('aligned_center_points.mat', {'x': x, 'y': y, 'z': z})
-    #     print('mat saved')
-
-    #     # Select the frame you want to plot
-    #     frame_index = 0  # Change this to plot a different frame
-    #     # Create a 3D scatter plot
-    #     x_all, y_all, z_all = [], [], []
-
-
-    #     fig = plt.figure()
-    #     ax = fig.add_subplot(111, projection='3d')
-
-
-
-    #     for frame_index in range(0, points_data.shape[0], 5):  #
-
-    #         frame_points = points_data[frame_index]
-
-
-
-    #         # Extract x, y, z coordinates
-
-    #         x = frame_points[:, 0]  # width --horizontal
-
-    #         y = frame_points[:, 1]  # height --vertical
-
-    #         z = frame_points[:, 2]  # time
-
-
-
-    #         # Append to the lists
-
-    #         x_all.extend(x)
-
-    #         y_all.extend(y)
-
-    #         z_all.extend(z)
-
-
-
-    #         # Scatter plot for each frame
-
-    #         ax.scatter(x, y, z)
-
-
-
-    #     # Convert lists to numpy arrays
-
-    #     x_all = np.array(x_all)
-
-    #     y_all = np.array(y_all)
-
-    #     z_all = np.array(z_all)
-
-
-
-    #     # Set labels for the scatter plot
-
-    #     ax.set_xlabel('Horizontal axis')
-
-    #     ax.set_ylabel('Vertical axis')
-
-    #     ax.set_zlabel('Time axis')
-
-
-
-    #     plt.show()  # Show the scatter plot
-
-
