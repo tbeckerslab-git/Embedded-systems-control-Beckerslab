@@ -103,7 +103,7 @@ def rotate_to_horizontal_3d(points):
     return rotated_points
 
 
-class Nodo(object):
+class CVNode(object):
     def __init__(self):
         # Params
         self.image = None
@@ -192,7 +192,7 @@ class Nodo(object):
             s = 1 #(0 - self.translation[2]) / (self.rotation[2] @ cam_coords)  # Scale factor
 
             world_coords = self.inverse_rotation @ (s * cam_coords - self.translation)
-            self.world .append(world_coords)
+            self.world.append(world_coords)
 
         # Convert the pixel coordinates into world coordinates
 
@@ -208,12 +208,14 @@ class Nodo(object):
         
         pc2_msg = pc2.create_cloud(header, fields, self.world)
         self.pub.publish(pc2_msg)
+
         self.world = []
+        
 
 
 if __name__ == '__main__':
     rospy.init_node("skeleton", anonymous=True)
-    my_node = Nodo()
+    my_node = CVNode()
     rospy.spin()
 
     cv2.destroyAllWindows()
