@@ -240,3 +240,7 @@ add_executable(example_position_reader src/example_position_reader.cpp)
 target_link_libraries(example_position_reader ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(torque_actuator motor/torque_actuator.cpp)
 target_link_libraries(torque_actuator ${catkin_LIBRARIES} ${DYNAMIXEL_SDK_LIBRARIES})
+
+# Copy these two lines for any new executable and replace cpp_controller with the name of your new file
+add_executable(cpp_controller controllers/cpp_controller.cpp)
+target_link_libraries(cpp_controller ${catkin_LIBRARIES} ${DYNAMIXEL_SDK_LIBRARIES})

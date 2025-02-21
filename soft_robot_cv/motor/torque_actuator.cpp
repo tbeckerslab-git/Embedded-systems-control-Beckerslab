@@ -13,7 +13,7 @@ public:
   void motorCallback(const std_msgs::Float64 &msg ){
     // Set goal current (torque)
   auto goal_current = msg.data;  // Adjust the goal current based on your motor and application
-  int converted_goal_int = 30;
+  int converted_goal_int = 40;
   printf("Goal current: %d\n", converted_goal_int);
 
   dxl_comm_result = packetHandler->write2ByteTxRx(portHandler, dxl_id, 102, goal_current, &dxl_error);  // Address 102 for Goal Current
@@ -24,11 +24,24 @@ public:
   } else {
     printf("Goal current (torque) applied.\n");
   }
+
+  // Read back present position
+  int32_t present_position = 0;
+  dxl_comm_result = packetHandler->read4ByteTxRx(portHandler, dxl_id, 132, (uint32_t*)&present_position, &dxl_error);  // Address 132 for Present Position
+  if (dxl_comm_result != COMM_SUCCESS) {
+    printf("%s\n", packetHandler->getTxRxResult(dxl_comm_result));
+  } else if (dxl_error != 0) {
+    printf("%s\n", packetHandler->getRxPacketError(dxl_error));
+  } else {
+    printf("Present Position: %d\n", present_position);
+  }
 }
 
   MotorTorqueController() {
     ros::Subscriber sub_ = n_.subscribe("/set_torque", 1, &MotorTorqueController::motorCallback, this);
     ros::Publisher pub_ = n_.advertise<std_msgs::Float64>("/torque_status", 10);
+
+    
 
     // Initialize PortHandler and PacketHandler instances
     portHandler = dynamixel::PortHandler::getPortHandler("/dev/ttyUSB0");
@@ -96,7 +109,7 @@ public:
       printf("Torque enabled.\n");
     }
     
-
+    ros::spin();
     
   }
 
@@ -136,7 +149,6 @@ int main(int argc, char **argv)
 
   MotorTorqueController motorController;
 
-  ros::spin();
  
 }
 
