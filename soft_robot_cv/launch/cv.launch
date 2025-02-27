@@ -16,6 +16,7 @@
   <remap from="/position" to="/position1" />
   <remap from="/camera/image_raw" to="/camera1/image_raw" />
   <!-- Launch the aruco node that detects and publishes the position of the aruo marker /> -->
+  <rosparam file="$(find soft_robot_cv)/config/23156987.yaml" />
   <node
     pkg="soft_robot_cv"
     type="aruco"
@@ -25,6 +26,7 @@
 
   <remap from="/position" to="/position2" />
   <remap from="/camera/image_raw" to="/camera2/image_raw" />
+  <rosparam file="$(find soft_robot_cv)/config/23141921.yaml" />
   <node
     pkg="soft_robot_cv"
     type="aruco"
@@ -34,6 +36,7 @@
 
   <remap from="/position" to="/position3" />
   <remap from="/camera/image_raw" to="/camera3/image_raw" />
+  <rosparam file="$(find soft_robot_cv)/config/23141922.yaml" />
   <node
     pkg="soft_robot_cv"
     type="aruco"
