@@ -1,0 +1,11 @@
+<!-- -*- mode: XML -*- -->
+
+<launch>
+    <node
+    pkg="soft_robot_cv"
+    type="torque_actuator"
+    name="example_actuator"
+    output="screen"
+  /> 
+
+</launch>
