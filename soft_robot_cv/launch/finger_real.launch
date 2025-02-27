@@ -1,14 +1,12 @@
 <launch>
-  <!-- Start each camera using ROS Spinnaker drivers /> -->
-  <!-- The number after "camera"  in the .launch corresponds to the inital serial number that will be connected-->
   <include file="$(find spinnaker_camera_driver)/launch/camera.launch" /> 
 
-  <!-- <node
+  <node
     pkg="soft_robot_cv"
     type="aruco"
     name="aruco_detect"
     output="screen"
-  />  -->
+  /> 
 
   <!-- <node
     pkg="soft_robot_cv"

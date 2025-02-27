@@ -5,12 +5,12 @@
   <remap from="/camera/image_raw" to="/camera1/image_raw" /> -->
   <!-- Launch the aruco node that detects and publishes the position of the aruo marker /> -->
 
-  <!-- <node
+  <node
     pkg="soft_robot_cv"
     type="aruco"
     name="aruco_detect"
     output="screen"
-  />  -->
+  /> 
   <!-- <node
     pkg="soft_robot_cv"
     type="example_actuator.py"
@@ -18,12 +18,12 @@
     output="screen"
   />  -->
 
-  <!-- <node
+  <node
     pkg="soft_robot_cv"
     type="example_position_reader"
     name="reader"
     output="screen"
-  />  -->
+  /> 
 
   
 
