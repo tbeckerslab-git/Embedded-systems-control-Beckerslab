@@ -1,0 +1,39 @@
+<launch>
+  <include file="$(find spinnaker_camera_driver)/launch/camera.launch" /> 
+
+  <node
+    pkg="soft_robot_cv"
+    type="aruco"
+    name="aruco_detect"
+    output="screen"
+  /> 
+
+  <!-- <node
+    pkg="soft_robot_cv"
+    type="example_position_reader"
+    name="reader"
+    output="screen"
+  />  -->
+
+  <!-- <node
+    pkg="soft_robot_cv"
+    type="skeleton.py"
+    name="skeleton"
+    output="screen"
+  />  -->
+
+  <!-- <node
+    pkg="soft_robot_cv"
+    type="python_controller.py"
+    name="python_controller"
+    output="screen"
+  />  -->
+<!-- 
+  <node
+    pkg="soft_robot_cv"
+    type="cpp_controller"
+    name="cpp_controller"
+    output="screen"
+  />  -->
+
+</launch> 

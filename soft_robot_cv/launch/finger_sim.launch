@@ -1,0 +1,31 @@
+<launch>
+
+  <!--  Use ROS remapping to use the unique topic names for each camera -->
+  <!-- <remap from="/position" to="/position1" />
+  <remap from="/camera/image_raw" to="/camera1/image_raw" /> -->
+  <!-- Launch the aruco node that detects and publishes the position of the aruo marker /> -->
+
+  <node
+    pkg="soft_robot_cv"
+    type="aruco"
+    name="aruco_detect"
+    output="screen"
+  /> 
+  <!-- <node
+    pkg="soft_robot_cv"
+    type="example_actuator.py"
+    name="example_actuator"
+    output="screen"
+  />  -->
+
+  <node
+    pkg="soft_robot_cv"
+    type="example_position_reader"
+    name="reader"
+    output="screen"
+  /> 
+
+  
+
+  
+</launch> 
