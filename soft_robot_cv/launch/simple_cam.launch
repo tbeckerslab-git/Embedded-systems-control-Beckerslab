@@ -5,19 +5,21 @@
   <remap from="/camera/image_raw" to="/camera1/image_raw" /> -->
   <!-- Launch the aruco node that detects and publishes the position of the aruo marker /> -->
 
-  <node
+  <include file="$(find spinnaker_camera_driver)/launch/camera23156987.launch" /> 
+  
+  <!-- <node
     pkg="soft_robot_cv"
     type="aruco"
     name="aruco_detect"
     output="screen"
-  /> 
+  />  -->
 
-  <node
+  <!-- <node
     pkg="soft_robot_cv"
     type="example_position_reader"
     name="reader"
     output="screen"
-  /> 
+  />  -->
 
   <!-- <param name="startSofa" command="/home/glorbs/sofa/build/bin/runSofa /home/glorbs/sofa/external_directories/SofaSoftGripper/src/gripper/gripper_scene.py
 " output="screen" /> -->
