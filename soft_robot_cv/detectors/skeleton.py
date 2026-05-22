@@ -13,7 +13,7 @@ from scipy.io import savemat
 import rospy
 import sensor_msgs.point_cloud2 as pc2
 from sensor_msgs.msg import Image, PointCloud2, PointField
-from std_msgs.msg import Int16
+from std_msgs.msg import Int16, Float32MultiArray
 from cv_bridge import CvBridge
 from skimage.morphology import skeletonize
 import threading
@@ -300,14 +300,14 @@ class CVNode(object):
         self.loop_rate = rospy.Rate(1)
 
         # Publishers
-        self.pub = rospy.Publisher('/skeleton', PointCloud2, queue_size=10)
+        self.pub = rospy.Publisher('/skeleton', Float32MultiArray, queue_size=10)
 
         # Subscribers
-        rospy.Subscriber("/camera/image_color", Image, self.callback)
+        rospy.Subscriber("/camera/image_mono", Image, self.callback)
 
         # Define the lower and upper bounds for the red color in BGR format
-        self.lower_red = np.array([30, 30, 30])  # Lower bound for red
-        self.upper_red = np.array([80, 80, 80])  # Upper bound for red
+        self.lower_red = np.array([150, 150, 150])  # Lower bound for red
+        self.upper_red = np.array([255, 255, 255])  # Upper bound for red
 
         # Initialize reference points
         self.reference_points = None
@@ -391,7 +391,7 @@ class CVNode(object):
 
         # Skip frame if no skeleton points detected
         if len(skeleton_coords) == 0:
-            self.aligned_center_points.append([])
+            self.aligned_center_points = []
             return
 
 
@@ -414,25 +414,16 @@ class CVNode(object):
         homogeneous_points = np.hstack((ref_points, np.ones((ref_points.shape[0], 1), dtype=ref_points.dtype)))
         self.aligned_center_points = homogeneous_points.tolist()
 
-        for pixel_coord in self.aligned_center_points:
-            cam_coords = self.inverse_K @ pixel_coord
-            s = 1  # Scale factor (flat surface assumption)
-            world_coords = self.inverse_rotation @ (s * cam_coords - self.translation)
-            self.world.append(world_coords)
+        # Don't need camera calibration, simple scaling is fine
+        # for pixel_coord in self.aligned_center_points:
+        #     cam_coords = self.inverse_K @ pixel_coord
+        #     s = 1  # Scale factor (flat surface assumption)
+        #     world_coords = self.inverse_rotation @ (s * cam_coords - self.translation)
+        #     self.world.append(world_coords)
 
-        # Convert the pixel coordinates into world coordinates
-        fields = [
-            PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
-            PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
-            PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1)
-        ]
-        
-        header = Header()
-        header.stamp = rospy.Time.now()
-        header.frame_id = 'map'  # Replace 'map' with your desired frame ID
-        
-        pc2_msg = pc2.create_cloud(header, fields, self.world)
-        self.pub.publish(pc2_msg)
+    
+
+        self.pub.publish(self.aligned_center_points)
 
         self.world = []
 

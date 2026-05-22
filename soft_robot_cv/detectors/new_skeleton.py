@@ -130,7 +130,6 @@ class CVNode(object):
         gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
 
         # Threshold
-        thresh_val = max(np.percentile(gray, 90), 10)
         _, mask = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
 
         # Morphology
@@ -149,6 +148,7 @@ class CVNode(object):
         mask_clean = np.zeros_like(mask)
         cv2.drawContours(mask_clean, [largest], -1, 255, -1)
 
+        # TODO: Any cv changes would be here probably
         # Skeletonize
         skeleton = skeletonize(mask_clean > 0)
         skeleton = img_as_ubyte(skeleton)
