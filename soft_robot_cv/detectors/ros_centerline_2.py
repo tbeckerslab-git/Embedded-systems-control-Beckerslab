@@ -263,10 +263,13 @@ def _smooth_centerline(pts_rc: np.ndarray, n_out: int = 100) -> Optional[np.ndar
     t_new = np.linspace(0.0, arc[-1], n_out)
     r_new = np.interp(t_new, arc, rows)
     c_new = np.interp(t_new, arc, cols)
-    w = max(3, n_out // 8) | 1
+    # w = max(3, n_out // 8) | 1                        # original: w=13, cuts 6 pts from each end
+    w = max(3, n_out // 35) | 1                         # smaller w → less endpoint loss
     kernel = np.ones(w, dtype=np.float32) / w
-    r_s = np.convolve(r_new, kernel, mode='valid')
-    c_s = np.convolve(c_new, kernel, mode='valid')
+    # r_s = np.convolve(r_new, kernel, mode='valid')    # original: cuts (w-1)/2 pts from each end
+    # c_s = np.convolve(c_new, kernel, mode='valid')
+    r_s = np.convolve(r_new, kernel, mode='same')       # same: keeps all 100 pts, no endpoint loss
+    c_s = np.convolve(c_new, kernel, mode='same')
     t_v = np.linspace(0.0, 1.0, len(r_s))
     t_o = np.linspace(0.0, 1.0, n_out)
     return np.stack([np.interp(t_o, t_v, c_s),
