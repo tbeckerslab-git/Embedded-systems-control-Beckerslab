@@ -335,6 +335,21 @@ def extract_centerline(
         return disp, None
 
     sorted_pts = _longest_path_on_skeleton(skel_bool)
+
+    # ── Pin clamp BEFORE resampling so all 100 points distribute correctly ──
+    # Old approach (after resampling): snapping node 0 post-hoc distorts all
+    # other nodes because resampling already assumed a different start point.
+    if clamp_pt is not None:
+        cx, cy = clamp_pt
+        # sorted_pts is in (row, col) order; clamp_pt is (x=col, y=row)
+        d_start = (int(sorted_pts[0, 1]) - cx)**2 + (int(sorted_pts[0, 0]) - cy)**2
+        d_end   = (int(sorted_pts[-1, 1]) - cx)**2 + (int(sorted_pts[-1, 0]) - cy)**2
+        if d_end < d_start:
+            sorted_pts = sorted_pts[::-1]
+        # Snap the skeleton's first point to the exact clamp pixel (row, col)
+        sorted_pts = sorted_pts.copy()
+        sorted_pts[0] = [cy - oy, cx - ox]   # convert to ROI-local (row, col)
+
     line_pts   = _smooth_centerline(sorted_pts, n_out=100)
     if line_pts is None:
         return disp, None
@@ -354,13 +369,14 @@ def extract_centerline(
         else:
             disp = mask_bgr
 
-    if clamp_pt is not None:
-        cx, cy = clamp_pt
-        d_start = (int(line_pts[0, 0]) - cx)**2 + (int(line_pts[0, 1]) - cy)**2
-        d_end   = (int(line_pts[-1, 0]) - cx)**2 + (int(line_pts[-1, 1]) - cy)**2
-        if d_end < d_start:
-            line_pts = line_pts[::-1]
-        line_pts[0] = [cx, cy]
+    # Old post-resampling clamp snap (kept for reference — replaced by pre-snap above)
+    # if clamp_pt is not None:
+    #     cx, cy = clamp_pt
+    #     d_start = (int(line_pts[0, 0]) - cx)**2 + (int(line_pts[0, 1]) - cy)**2
+    #     d_end   = (int(line_pts[-1, 0]) - cx)**2 + (int(line_pts[-1, 1]) - cy)**2
+    #     if d_end < d_start:
+    #         line_pts = line_pts[::-1]
+    #     line_pts[0] = [cx, cy]
 
     cv.polylines(disp, [line_pts.reshape(-1, 1, 2)], False,
                  (0, 255, 0), 2, cv.LINE_AA)
