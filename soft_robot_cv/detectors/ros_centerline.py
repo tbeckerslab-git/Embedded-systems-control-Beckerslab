@@ -387,6 +387,12 @@ def extract_centerline(
     #         line_pts = line_pts[::-1]
     #     line_pts[0] = [cx, cy]
 
+    # Final snap: _smooth_centerline's moving-average pulls the first output point
+    # away from the true clamp due to mode='valid'. The bridge above ensures correct
+    # distribution of the 100 points; this snap only corrects the last ~1px error.
+    if clamp_pt is not None:
+        line_pts[0] = [cx, cy]
+
     cv.polylines(disp, [line_pts.reshape(-1, 1, 2)], False,
                  (0, 255, 0), 2, cv.LINE_AA)
     for pt in line_pts[::3]:
