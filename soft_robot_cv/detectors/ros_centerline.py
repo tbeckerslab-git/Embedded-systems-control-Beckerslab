@@ -336,6 +336,8 @@ def extract_centerline(
 
     sorted_pts = _longest_path_on_skeleton(skel_bool)
 
+    ox, oy = offset
+
     # ── Pin clamp BEFORE resampling so all 100 points distribute correctly ──
     # Old approach (after resampling): snapping node 0 post-hoc distorts all
     # other nodes because resampling already assumed a different start point.
@@ -354,7 +356,6 @@ def extract_centerline(
     if line_pts is None:
         return disp, None
 
-    ox, oy = offset
     line_pts[:, 0] += ox
     line_pts[:, 1] += oy
 
