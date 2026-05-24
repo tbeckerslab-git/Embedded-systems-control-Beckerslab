@@ -335,11 +335,35 @@ def extract_centerline(
         return disp, None
 
     sorted_pts = _longest_path_on_skeleton(skel_bool)
+
+    ox, oy = offset
+
+    if clamp_pt is not None:
+        cx, cy = clamp_pt
+        # Orient sorted_pts so it starts at the clamp end (row,col order)
+        d_start = (int(sorted_pts[0, 1]) - cx)**2 + (int(sorted_pts[0, 0]) - cy)**2
+        d_end   = (int(sorted_pts[-1, 1]) - cx)**2 + (int(sorted_pts[-1, 0]) - cy)**2
+        if d_end < d_start:
+            sorted_pts = sorted_pts[::-1]
+
+        # Compute gap between clamp pixel and first skeleton point (in ROI-local coords)
+        clamp_rc = np.array([cy - oy, cx - ox], dtype=np.float32)
+        gap_px = np.linalg.norm(clamp_rc - sorted_pts[0].astype(np.float32))
+
+        # Interpolate points to bridge the gap smoothly (1 point per pixel of gap)
+        n_bridge = max(2, int(np.round(gap_px)))
+        bridge = np.stack([
+            np.linspace(clamp_rc[0], sorted_pts[0, 0], n_bridge, dtype=np.float32),
+            np.linspace(clamp_rc[1], sorted_pts[0, 1], n_bridge, dtype=np.float32),
+        ], axis=1).astype(sorted_pts.dtype)
+        # Prepend bridge points (drop last bridge point to avoid duplicate with sorted_pts[0])
+        sorted_pts = np.vstack([bridge[:-1], sorted_pts])
+
+    # Original single-step call (unchanged)
     line_pts   = _smooth_centerline(sorted_pts, n_out=100)
     if line_pts is None:
         return disp, None
 
-    ox, oy = offset
     line_pts[:, 0] += ox
     line_pts[:, 1] += oy
 
@@ -354,13 +378,14 @@ def extract_centerline(
         else:
             disp = mask_bgr
 
-    if clamp_pt is not None:
-        cx, cy = clamp_pt
-        d_start = (int(line_pts[0, 0]) - cx)**2 + (int(line_pts[0, 1]) - cy)**2
-        d_end   = (int(line_pts[-1, 0]) - cx)**2 + (int(line_pts[-1, 1]) - cy)**2
-        if d_end < d_start:
-            line_pts = line_pts[::-1]
-        line_pts[0] = [cx, cy]
+    # Original post-resampling clamp snap (commented out — replaced by pre-resampling bridge above)
+    # if clamp_pt is not None:
+    #     cx, cy = clamp_pt
+    #     d_start = (int(line_pts[0, 0]) - cx)**2 + (int(line_pts[0, 1]) - cy)**2
+    #     d_end   = (int(line_pts[-1, 0]) - cx)**2 + (int(line_pts[-1, 1]) - cy)**2
+    #     if d_end < d_start:
+    #         line_pts = line_pts[::-1]
+    #     line_pts[0] = [cx, cy]
 
     cv.polylines(disp, [line_pts.reshape(-1, 1, 2)], False,
                  (0, 255, 0), 2, cv.LINE_AA)
