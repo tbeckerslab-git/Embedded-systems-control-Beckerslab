@@ -270,7 +270,8 @@ def _smooth_centerline(pts_rc: np.ndarray, n_out: int = 100) -> Optional[np.ndar
     # c_s = np.convolve(c_new, kernel, mode='valid')
     # r_s = np.convolve(r_new, kernel, mode='same')     # same: causes straight-line boundary artifacts
     # c_s = np.convolve(c_new, kernel, mode='same')
-    pad = w // 2
+    # pad = w // 2                                      # original: ties pad to smoothing window
+    pad = 20                                            # larger pad → coverage closer to endpoint (tune this)
     r_s = np.convolve(np.pad(r_new, pad, mode='edge'), kernel, mode='valid')  # edge-pad: no artifacts, no endpoint loss
     c_s = np.convolve(np.pad(c_new, pad, mode='edge'), kernel, mode='valid')
     t_v = np.linspace(0.0, 1.0, len(r_s))
