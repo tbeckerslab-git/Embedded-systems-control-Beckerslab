@@ -348,9 +348,11 @@ def extract_centerline(
         d_end   = (int(sorted_pts[-1, 1]) - cx)**2 + (int(sorted_pts[-1, 0]) - cy)**2
         if d_end < d_start:
             sorted_pts = sorted_pts[::-1]
-        # Snap the skeleton's first point to the exact clamp pixel (row, col)
-        sorted_pts = sorted_pts.copy()
-        sorted_pts[0] = [cy - oy, cx - ox]   # convert to ROI-local (row, col)
+        # Prepend clamp pixel so resampling covers from true clamp to tip.
+        # (Previously we replaced sorted_pts[0] which only moved one point
+        #  but left a gap when the skeleton started ~10mm away from the clamp.)
+        clamp_rc = np.array([[cy - oy, cx - ox]], dtype=sorted_pts.dtype)
+        sorted_pts = np.vstack([clamp_rc, sorted_pts])
 
     line_pts   = _smooth_centerline(sorted_pts, n_out=100)
     if line_pts is None:
