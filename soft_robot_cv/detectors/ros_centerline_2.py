@@ -422,8 +422,12 @@ def extract_centerline(
         cy_roi = clamp_pt[1] - oy   # (row)
         sorted_pts = _path_from_clamp(skel_bool, clamp_rc=(cy_roi, cx_roi))
     else:
-        # No clamp marker — use double BFS (unchanged behaviour)
+        # No clamp marker — use double BFS then orient so node-0 is the
+        # topmost point (smallest row = highest in image = clamp end).
+        # This assumes the rod hangs downward from a fixed clamp at the top.
         sorted_pts = _longest_path_on_skeleton(skel_bool)
+        if len(sorted_pts) > 0 and sorted_pts[0, 0] > sorted_pts[-1, 0]:
+            sorted_pts = sorted_pts[::-1]   # flip so smallest row is first
 
     line_pts = _smooth_centerline(sorted_pts, n_out=N_OUT)
     if line_pts is None:
