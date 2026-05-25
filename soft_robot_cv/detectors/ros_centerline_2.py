@@ -748,7 +748,6 @@ class ROSCenterlineNode:
                     pts_f = line_pts.astype(np.float64)
                     if self._ema_pts is None:
                         self._ema_pts = pts_f
-                        alpha = self.ALPHA_MAX
                     else:
                         # Estimate motion: mean pixel displacement of all nodes
                         motion = float(np.mean(np.sqrt(
@@ -758,8 +757,11 @@ class ROSCenterlineNode:
                         t = min(1.0, motion / self.MOTION_THRESH_PX)
                         alpha = self.ALPHA_MIN + t * (self.ALPHA_MAX - self.ALPHA_MIN)
                         self._ema_pts = alpha * pts_f + (1.0 - alpha) * self._ema_pts
-                    line_pts = np.round(self._ema_pts).astype(np.int32)
                     # ----------------------------------------------------------
+
+                # Use last known EMA when detection fails — keeps output continuous
+                if self._ema_pts is not None:
+                    line_pts = np.round(self._ema_pts).astype(np.int32)
 
                     # Draw green line ONCE here (extract_centerline draws nothing)
                     cv.polylines(disp, [line_pts.reshape(-1, 1, 2)], False,
