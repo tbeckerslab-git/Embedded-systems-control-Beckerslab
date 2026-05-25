@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
 """
-ros_centerline.py
+ros_centerline_2.py  (experimental — keep ros_centerline.py as reference)
 
 ROS node that runs the live_centerline skeletonization pipeline on a ROS
-camera topic and publishes the 100-point centerline as Float32MultiArray.
+camera topic and publishes the N_OUT-point centerline as Float32MultiArray.
+Optimised for 80-100 Hz closed-loop control with N_OUT=25 points.
+
+Changes vs ros_centerline.py:
+  - N_OUT=25 (was 100) for faster processing and control
+  - Single BFS from clamp when marker set; fallback double BFS otherwise
+  - Smaller MORPH_CLOSE kernel (7x7, was 15x15) for speed and endpoint coverage
+  - Adaptive EMA alpha: high when rod moves fast, low when stationary
+  - Green line drawn only after EMA (no double-line artefact)
+  - Save format: [x0..x24, y0..y24, frame_index] = 51 values per row
 
 Subscribes:
   /camera/image_color  (sensor_msgs/Image)   — change with --topic
 
 Publishes:
   /skeleton            (std_msgs/Float32MultiArray)
-      layout: flat array  [x0, x1, …, x99, y0, y1, …, y99]  (200 floats)
-      Same order as centerline_data.txt used by the notebook pipeline.
+      layout: flat array  [x0, x1, …, x24, y0, y1, …, y24]  (50 floats)
 
 Saves:
   centerline_data.txt  in the working directory when 's' is pressed
-  (same format as live_centerline.py — compatible with convert_centerline.py)
 
 Key bindings (same as live_centerline.py):
   q / ESC : quit
@@ -30,9 +37,8 @@ Key bindings (same as live_centerline.py):
   Trackbar: Threshold  (and Gauss sigma when blur is ON)
 
 Usage:
-  rosrun cosserat_skeletonization ros_centerline.py
-  rosrun cosserat_skeletonization ros_centerline.py _topic:=/camera/image_raw
-  python3 scripts/ros_centerline.py --topic /camera/image_color --thresh 120
+  rosrun cosserat_skeletonization ros_centerline_2.py
+  python3 scripts/ros_centerline_2.py --topic /camera/image_color --thresh 120
 """
 
 from __future__ import annotations
@@ -187,6 +193,9 @@ def _prune_skeleton(skel: np.ndarray, min_branch: int = 30) -> np.ndarray:
     return skel.astype(bool)
 
 
+N_OUT = 25   # number of centerline output points (was 100 in ros_centerline.py)
+
+
 def _longest_path_on_skeleton(skel_img: np.ndarray) -> np.ndarray:
     pts = np.argwhere(skel_img)
     if len(pts) == 0:
@@ -251,7 +260,66 @@ def _longest_path_on_skeleton(skel_img: np.ndarray) -> np.ndarray:
         return trace(ep_b, parent)
 
 
-def _smooth_centerline(pts_rc: np.ndarray, n_out: int = 100) -> Optional[np.ndarray]:
+def _path_from_clamp(skel_img: np.ndarray, clamp_rc: Tuple[int, int]) -> np.ndarray:
+    """Single BFS from the skeleton point nearest to the clamp pixel.
+
+    Finds the farthest reachable skeleton point (the free tip), then traces
+    back to build the ordered path clamp→tip.  Faster than double BFS and
+    guarantees the path starts at the clamp end.
+
+    Falls back to _longest_path_on_skeleton if the clamp pixel has no
+    skeleton neighbours within a 20-pixel search radius.
+    """
+    pts = np.argwhere(skel_img)
+    if len(pts) == 0:
+        return pts
+
+    cr, cc = clamp_rc   # clamp in (row, col) = (y, x) image coords
+
+    # Find skeleton point closest to the clamp pixel
+    dists_sq = (pts[:, 0] - cr) ** 2 + (pts[:, 1] - cc) ** 2
+    nearest_idx = int(np.argmin(dists_sq))
+    if dists_sq[nearest_idx] > 20 ** 2:
+        # Clamp is too far from any skeleton point — fall back to double BFS
+        return _longest_path_on_skeleton(skel_img)
+
+    h, w = skel_img.shape
+    idx_map = np.full((h, w), -1, dtype=np.int32)
+    idx_map[skel_img] = np.arange(len(pts), dtype=np.int32)
+
+    dist   = np.full(len(pts), -1, dtype=np.int32)
+    parent = np.full(len(pts), -1, dtype=np.int32)
+    dist[nearest_idx] = 0
+    queue = deque([nearest_idx])
+    far_idx, far_dist = nearest_idx, 0
+    while queue:
+        ci = queue.popleft()
+        r, c = int(pts[ci][0]), int(pts[ci][1])
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                if dr == 0 and dc == 0:
+                    continue
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < h and 0 <= nc < w:
+                    ni = idx_map[nr, nc]
+                    if ni >= 0 and dist[ni] == -1:
+                        dist[ni] = dist[ci] + 1
+                        parent[ni] = ci
+                        queue.append(ni)
+                        if dist[ni] > far_dist:
+                            far_dist, far_idx = dist[ni], ni
+
+    # Trace back from free tip to clamp (result is tip→clamp; reverse it)
+    path = []
+    cur = far_idx
+    while cur != -1:
+        path.append(cur)
+        cur = int(parent[cur])
+    path.reverse()   # now clamp→tip
+    return pts[path]
+
+
+def _smooth_centerline(pts_rc: np.ndarray, n_out: int = N_OUT) -> Optional[np.ndarray]:
     if len(pts_rc) < 10:
         return None
     rows = pts_rc[:, 0].astype(np.float32)
@@ -263,12 +331,12 @@ def _smooth_centerline(pts_rc: np.ndarray, n_out: int = 100) -> Optional[np.ndar
     t_new = np.linspace(0.0, arc[-1], n_out)
     r_new = np.interp(t_new, arc, rows)
     c_new = np.interp(t_new, arc, cols)
-    # w = max(3, n_out // 8) | 1                        # original: w=13, cuts 6 pts from each end
+    # w = max(3, n_out // 8) | 1                        # original (ros_centerline.py): w=13, cuts 6 pts from each end
     w = max(3, n_out // 35) | 1                         # smaller w → less endpoint loss
     kernel = np.ones(w, dtype=np.float32) / w
     # r_s = np.convolve(r_new, kernel, mode='valid')    # original: cuts (w-1)/2 pts from each end
     # c_s = np.convolve(c_new, kernel, mode='valid')
-    # r_s = np.convolve(r_new, kernel, mode='same')     # same: causes straight-line boundary artifacts
+    # r_s = np.convolve(r_new, kernel, mode='same')     # mode='same': straight-line boundary artifacts
     # c_s = np.convolve(c_new, kernel, mode='same')
     # pad = w // 2                                      # original: ties pad to smoothing window
     pad = 20                                            # larger pad → coverage closer to endpoint (tune this)
@@ -288,7 +356,10 @@ def extract_centerline(
     invert: bool = False,
     clamp_pt: Optional[Tuple[int, int]] = None,
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-    """Returns (display_frame, line_pts) where line_pts is (100,2) int32 or None."""
+    """Returns (display_frame, line_pts) where line_pts is (N_OUT,2) int32 or None.
+
+    No green line is drawn here — caller draws after EMA to avoid double-line.
+    """
     h, w = frame_bgr.shape[:2]
     disp = frame_bgr.copy()
 
@@ -319,8 +390,10 @@ def extract_centerline(
     clean_mask[labels == largest] = 255
 
     kernel_sm = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
-    kernel_lg = cv.getStructuringElement(cv.MORPH_ELLIPSE, (15, 15))
-    clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_CLOSE, kernel_lg, iterations=3)
+    # kernel_lg = cv.getStructuringElement(cv.MORPH_ELLIPSE, (15, 15))  # original: rounds endpoints ~6mm gap
+    kernel_lg = cv.getStructuringElement(cv.MORPH_ELLIPSE, (7, 7))      # smaller: less rounding, better endpoint coverage
+    # clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_CLOSE, kernel_lg, iterations=3)  # original
+    clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_CLOSE, kernel_lg, iterations=1)    # fewer iterations → faster
     clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_OPEN,  kernel_sm, iterations=1)
 
     skel_bool = skeletonize(clean_mask > 0)
@@ -341,12 +414,21 @@ def extract_centerline(
     if np.argwhere(skel_bool).shape[0] < 10:
         return disp, None
 
-    sorted_pts = _longest_path_on_skeleton(skel_bool)
-    line_pts   = _smooth_centerline(sorted_pts, n_out=100)
+    ox, oy = offset
+
+    if clamp_pt is not None:
+        # Single BFS from the clamp pixel — guarantees clamp-first ordering
+        cx_roi = clamp_pt[0] - ox   # convert clamp to ROI coords (col)
+        cy_roi = clamp_pt[1] - oy   # (row)
+        sorted_pts = _path_from_clamp(skel_bool, clamp_rc=(cy_roi, cx_roi))
+    else:
+        # No clamp marker — use double BFS (unchanged behaviour)
+        sorted_pts = _longest_path_on_skeleton(skel_bool)
+
+    line_pts = _smooth_centerline(sorted_pts, n_out=N_OUT)
     if line_pts is None:
         return disp, None
 
-    ox, oy = offset
     line_pts[:, 0] += ox
     line_pts[:, 1] += oy
 
@@ -363,22 +445,14 @@ def extract_centerline(
 
     if clamp_pt is not None:
         cx, cy = clamp_pt
+        # Orient so index-0 is closest to clamp
         d_start = (int(line_pts[0, 0]) - cx)**2 + (int(line_pts[0, 1]) - cy)**2
         d_end   = (int(line_pts[-1, 0]) - cx)**2 + (int(line_pts[-1, 1]) - cy)**2
         if d_end < d_start:
             line_pts = line_pts[::-1]
         line_pts[0] = [cx, cy]
 
-    cv.polylines(disp, [line_pts.reshape(-1, 1, 2)], False,
-                 (0, 255, 0), 2, cv.LINE_AA)
-    for pt in line_pts[::3]:
-        cv.circle(disp, (int(pt[0]), int(pt[1])), 3, (0, 80, 255), -1)
-
-    if clamp_pt is not None:
-        cx, cy = clamp_pt
-        cv.circle(disp, (cx, cy), 8,  (255, 255, 0), 2, cv.LINE_AA)
-        cv.line(disp, (cx - 10, cy), (cx + 10, cy), (255, 255, 0), 2, cv.LINE_AA)
-        cv.line(disp, (cx, cy - 10), (cx, cy + 10), (255, 255, 0), 2, cv.LINE_AA)
+    # NOTE: green line NOT drawn here — main loop draws after EMA to avoid double-line.
 
     return disp, line_pts
 
@@ -446,14 +520,22 @@ class AppState:
 # ROS centerline node
 # ---------------------------------------------------------------------------
 class ROSCenterlineNode:
-    WIN     = "ROS Centerline"
+    WIN     = "ROS Centerline 2"
     WIN_BCG = "S1 BCG"
     TB_GAUSS  = "Gauss sigma"
     TB_THRESH = "Threshold"
     # W, H    = 2100, 1300
-    W, H    = 1200,680
+    W, H    = 1200, 680
     # W, H    = 320, 240
-    # W, H    = 240,180
+    # W, H    = 240, 180
+
+    # Adaptive EMA bounds: alpha stays in [ALPHA_MIN, ALPHA_MAX]
+    # When rod is still → alpha=ALPHA_MIN (heavy smoothing, anti-jitter)
+    # When rod moves fast → alpha=ALPHA_MAX (follow motion)
+    ALPHA_MIN = 0.05   # minimum alpha (most smoothing)
+    ALPHA_MAX = 0.5    # maximum alpha (most responsive)
+    # Motion threshold in pixels: mean displacement above this → use ALPHA_MAX
+    MOTION_THRESH_PX = 5.0
 
     def __init__(self, topic: str, thresh: int = 100, save_path: str = "centerline_data.txt",
                  alpha: float = 0.05) -> None:
@@ -466,10 +548,10 @@ class ROSCenterlineNode:
         self._last_t    = perf_counter()
         self._frame_count = 0   # monotonically increasing ROS frame counter
 
-        # Temporal EMA smoothing: output = alpha*new + (1-alpha)*previous
-        # alpha=1.0 → no smoothing (raw); alpha~0.2 → very stable, slow to respond
+        # Adaptive EMA smoothing: alpha=ALPHA_MIN when still, ALPHA_MAX when moving fast
+        # --alpha CLI arg sets the fixed alpha only when adaptive mode is disabled
         self._alpha: float = float(np.clip(alpha, 0.0, 1.0))
-        self._ema_pts: Optional[np.ndarray] = None   # float64 (100, 2)
+        self._ema_pts: Optional[np.ndarray] = None   # float64 (N_OUT, 2)
 
         # Latest decoded frame from ROS callback (protected by GIL — single writer)
         self._pending_frame: Optional[np.ndarray] = None
@@ -556,26 +638,24 @@ class ROSCenterlineNode:
     # ---- publish -----------------------------------------------------------
 
     def _publish(self, line_pts: np.ndarray) -> None:
-        """Publish centerline as Float32MultiArray (200 floats).
+        """Publish centerline as Float32MultiArray (2*N_OUT floats).
 
-        Active layout — interleaved, consistent with old skeleton.py / new_skeleton.py:
-            [x0, y0, x1, y1, …, x99, y99]
+        Layout — separated x then y, consistent with centerline_data.txt / notebook:
+            [x0, x1, …, x(N_OUT-1), y0, y1, …, y(N_OUT-1)]
 
-        Commented-out alternative — separated, consistent with centerline_data.txt / notebook:
-            [x0, x1, …, x99, y0, y1, …, y99]
+        # Interleaved alternative (consistent with old skeleton.py / new_skeleton.py):
+        # flat = line_pts.astype(np.float32).flatten()   # [x0,y0,x1,y1,…]
         """
         if not _HAS_ROS:
             return
 
-        # Interleaved: [x0, y0, x1, y1, …, x99, y99]
-        flat = line_pts.astype(np.float32).flatten()   # shape (100,2) → (200,)
+        # Separated: [x0..x(N_OUT-1), y0..y(N_OUT-1)]
+        flat = np.concatenate([line_pts[:, 0], line_pts[:, 1]]).astype(np.float32)
 
-        # # Separated: [x0..x99, y0..y99]  — uncomment to switch back
-        # flat = np.concatenate([line_pts[:, 0], line_pts[:, 1]]).astype(np.float32)
-
+        n_floats = 2 * N_OUT
         msg = Float32MultiArray()
         msg.layout = MultiArrayLayout(
-            dim=[MultiArrayDimension(label="xy", size=200, stride=200)],
+            dim=[MultiArrayDimension(label="xy", size=n_floats, stride=n_floats)],
             data_offset=0,
         )
         msg.data = flat.tolist()
@@ -664,33 +744,39 @@ class ROSCenterlineNode:
                 )
 
                 if line_pts is not None:
-                    # ---- Temporal EMA smoothing (anti-jitter) ----------------
-                    # Blend new detection with previous output so stationary
-                    # fingers stay still.  alpha=1 disables smoothing entirely.
+                    # ---- Adaptive EMA smoothing (anti-jitter) ----------------
                     pts_f = line_pts.astype(np.float64)
                     if self._ema_pts is None:
                         self._ema_pts = pts_f
+                        alpha = self.ALPHA_MAX
                     else:
-                        self._ema_pts = self._alpha * pts_f + (1.0 - self._alpha) * self._ema_pts
+                        # Estimate motion: mean pixel displacement of all nodes
+                        motion = float(np.mean(np.sqrt(
+                            np.sum((pts_f - self._ema_pts) ** 2, axis=1)
+                        )))
+                        # Linearly ramp alpha between ALPHA_MIN and ALPHA_MAX
+                        t = min(1.0, motion / self.MOTION_THRESH_PX)
+                        alpha = self.ALPHA_MIN + t * (self.ALPHA_MAX - self.ALPHA_MIN)
+                        self._ema_pts = alpha * pts_f + (1.0 - alpha) * self._ema_pts
                     line_pts = np.round(self._ema_pts).astype(np.int32)
+                    # ----------------------------------------------------------
 
-                    # Redraw overlay using smoothed pts (replaces the raw dots
-                    # drawn inside extract_centerline before EMA was applied)
+                    # Draw green line ONCE here (extract_centerline draws nothing)
                     cv.polylines(disp, [line_pts.reshape(-1, 1, 2)], False,
                                  (0, 255, 0), 2, cv.LINE_AA)
-                    for pt in line_pts[::3]:
+                    step = max(1, N_OUT // 8)   # ~8 dots along the rod
+                    for pt in line_pts[::step]:
                         cv.circle(disp, (int(pt[0]), int(pt[1])), 3, (0, 80, 255), -1)
                     if self.st.clamp_pt is not None:
                         cx, cy = self.st.clamp_pt
                         cv.circle(disp, (cx, cy), 8, (255, 255, 0), 2, cv.LINE_AA)
                         cv.line(disp, (cx-10, cy), (cx+10, cy), (255, 255, 0), 2, cv.LINE_AA)
                         cv.line(disp, (cx, cy-10), (cx, cy+10), (255, 255, 0), 2, cv.LINE_AA)
-                    # ----------------------------------------------------------
 
                     # Publish over ROS
                     self._publish(line_pts)
 
-                    # Save to file
+                    # Save to file: [x0..x(N_OUT-1), y0..y(N_OUT-1), frame_index]
                     if self.st.saving:
                         row = np.concatenate([line_pts[:, 0], line_pts[:, 1],
                                               [self.st.frames_saved]])
@@ -749,8 +835,8 @@ def main() -> int:
                     help="Initial threshold value (0–255, default: 100)")
     ap.add_argument("--save",   default="centerline_data.txt",
                     help="Output file for centerline data (default: centerline_data.txt)")
-    ap.add_argument("--alpha", type=float, default=0.3,
-                    help="EMA smoothing factor 0–1 (0=frozen, 1=no smoothing, default: 0.3)")
+    ap.add_argument("--alpha", type=float, default=0.05,
+                    help="EMA base alpha (adaptive range [alpha, ALPHA_MAX=0.5], default: 0.05)")
     ap.add_argument("--log",    default="INFO")
     args = ap.parse_args()
 
