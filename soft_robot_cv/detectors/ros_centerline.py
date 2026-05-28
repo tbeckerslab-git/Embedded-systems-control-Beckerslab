@@ -490,6 +490,8 @@ class ROSCenterlineNode:
             rospy.logwarn_throttle(5.0, "cv_bridge error: %s", e)
             return
         self._pending_frame = cv.resize(frame, (self.W, self.H))
+        self._pending_stamp = msg.header.stamp.to_sec()   # add timestamps
+
 
     # ---- OpenCV window setup -----------------------------------------------
 
@@ -674,9 +676,14 @@ class ROSCenterlineNode:
                     # Save to file
                     if self.st.saving:
                         row = np.concatenate([line_pts[:, 0], line_pts[:, 1],
-                                              [self.st.frames_saved]])
+                                              [self.st.frames_saved], [self._pending_stamp]])
                         with open(self.save_path, 'a') as f:
-                            f.write(' '.join(f'{v:.1f}' for v in row) + '\n')
+                            coords_and_idx = ' '.join(f'{v:.1f}' for v in row[:-1])
+                            f.write(f'{coords_and_idx} {self._pending_stamp:.6f}\n')
+                        # row = np.concatenate([line_pts[:, 0], line_pts[:, 1],
+                        #                       [self.st.frames_saved]])
+                        # with open(self.save_path, 'a') as f:
+                        #     f.write(' '.join(f'{v:.1f}' for v in row) + '\n')
                         self.st.frames_saved += 1
 
                 self._draw_roi(disp)
