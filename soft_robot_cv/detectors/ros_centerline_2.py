@@ -529,7 +529,7 @@ class ROSCenterlineNode:
     TB_GAUSS  = "Gauss sigma"
     TB_THRESH = "Threshold"
     # W, H    = 2100, 1300
-    W, H    = 1200, 680
+    W, H    = 2300, 900
     # W, H    = 320, 240
     # W, H    = 240, 180
 
