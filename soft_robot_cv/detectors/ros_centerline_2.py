@@ -538,7 +538,8 @@ class ROSCenterlineNode:
     TB_THRESH = "Threshold"
     # W, H    = 2100, 1300
     # W, H    = 1200, 680
-    W, H    = 600, 200
+    W, H    = 600, 450 # Use (600, 600 *(1080/1440) to preserve aspect ratio of 1440x1080 input while speeding up processing with smaller frame size; adjust as needed for your input resolution and speed requirements
+
     # W, H    = 240, 180
 
     # Adaptive EMA bounds: alpha stays in [ALPHA_MIN, ALPHA_MAX]
@@ -549,7 +550,7 @@ class ROSCenterlineNode:
     # Motion threshold in pixels: mean displacement above this → use ALPHA_MAX
     MOTION_THRESH_PX = 5.0
 
-    def __init__(self, topic: str, thresh: int = 100, save_path: str = "centerline_data.txt",
+    def __init__(self, topic: str, thresh: int = 100, save_path: str = "centerline_data_25pts.txt",
                  alpha: float = 0.05) -> None:
         self.topic      = topic
         self.save_path  = save_path

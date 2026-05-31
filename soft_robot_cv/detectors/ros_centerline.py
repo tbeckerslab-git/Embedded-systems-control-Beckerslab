@@ -449,11 +449,11 @@ class ROSCenterlineNode:
     TB_THRESH = "Threshold"
     # W, H    = 2100, 1300
     # W, H    = 1200,680
-    W, H    = 600, 400
+    W, H    = 600, 450 # Use (600, 600 *(1080/1440) to preserve aspect ratio of 1440x1080 input while speeding up processing with smaller frame size; adjust as needed for your input resolution and speed requirements
     # W, H    = 320, 240
     # W, H    = 240,180
 
-    def __init__(self, topic: str, thresh: int = 100, save_path: str = "centerline_data.txt",
+    def __init__(self, topic: str, thresh: int = 100, save_path: str = "centerline_data_100pts.txt",
                  alpha: float = 0.3) -> None:
         self.topic      = topic
         self.save_path  = save_path
