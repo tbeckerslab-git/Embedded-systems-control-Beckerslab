@@ -205,7 +205,8 @@ def _longest_path_on_skeleton(skel_img: np.ndarray) -> np.ndarray:
     idx_map[skel_img] = np.arange(len(pts), dtype=np.int32)
 
     def bfs_from(start_idx: int):
-        dist   = np.full(len(pts), -1, dtype=np.int32)
+        # dist   = np.full(len(pts), -1, dtype=np.int32) # change to float if you want actual distances instead of hop counts
+        dist   = np.full(len(pts), -1, dtype=np.float64)
         parent = np.full(len(pts), -1, dtype=np.int32)
         dist[start_idx] = 0
         queue = deque([start_idx])
@@ -221,7 +222,9 @@ def _longest_path_on_skeleton(skel_img: np.ndarray) -> np.ndarray:
                     if 0 <= nr < h and 0 <= nc < w:
                         ni = idx_map[nr, nc]
                         if ni >= 0 and dist[ni] == -1:
-                            dist[ni] = dist[ci] + 1
+                            # dist[ni] = dist[ci] + 1
+                            # dist[ni] = dist[ci] + np.sqrt(dr**2 + dc**2)  # actual distance
+                            dist[ni] = dist[ci] + (1.4142 if dr != 0 and dc != 0 else 1.0)  # octile distance
                             parent[ni] = ci
                             queue.append(ni)
                             if dist[ni] > far_dist:
@@ -287,7 +290,8 @@ def _path_from_clamp(skel_img: np.ndarray, clamp_rc: Tuple[int, int]) -> np.ndar
     idx_map = np.full((h, w), -1, dtype=np.int32)
     idx_map[skel_img] = np.arange(len(pts), dtype=np.int32)
 
-    dist   = np.full(len(pts), -1, dtype=np.int32)
+    # dist   = np.full(len(pts), -1, dtype=np.int32) # change to float if you want actual distances instead of hop counts
+    dist   = np.full(len(pts), -1, dtype=np.float64) 
     parent = np.full(len(pts), -1, dtype=np.int32)
     dist[nearest_idx] = 0
     queue = deque([nearest_idx])
@@ -303,7 +307,9 @@ def _path_from_clamp(skel_img: np.ndarray, clamp_rc: Tuple[int, int]) -> np.ndar
                 if 0 <= nr < h and 0 <= nc < w:
                     ni = idx_map[nr, nc]
                     if ni >= 0 and dist[ni] == -1:
-                        dist[ni] = dist[ci] + 1
+                        # dist[ni] = dist[ci] + 1 # or use actual distance: dist[ci] + np.sqrt(dr**2 + dc**2) or octile distance: dist[ci] + (1.4142 if dr != 0 and dc != 0 else 1.0)
+                        # dist[ci] + np.sqrt(dr**2 + dc**2)  # actual distance
+                        dist[ni] = dist[ci] + (1.4142 if dr != 0 and dc != 0 else 1.0)  # octile distance
                         parent[ni] = ci
                         queue.append(ni)
                         if dist[ni] > far_dist:
@@ -389,20 +395,20 @@ def extract_centerline(
     clean_mask = np.zeros_like(mask)
     clean_mask[labels == largest] = 255
 
-    kernel_sm = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
+    kernel_sm = cv.getStructuringElement(cv.MORPH_ELLIPSE, (2, 2)) # opening kernel: removes small noise blobs that can break skeleton connectivity
     # kernel_lg = cv.getStructuringElement(cv.MORPH_ELLIPSE, (15, 15))  # original: rounds endpoints ~6mm gap
-    kernel_lg = cv.getStructuringElement(cv.MORPH_ELLIPSE, (7, 7))      # smaller: less rounding, better endpoint coverage
+    kernel_lg = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))      # closing kernel: smaller: less rounding, better endpoint coverage
     # clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_CLOSE, kernel_lg, iterations=3)  # original
     clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_CLOSE, kernel_lg, iterations=1)    # fewer iterations → faster
     clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_OPEN,  kernel_sm, iterations=1)
 
     skel_bool = skeletonize(clean_mask > 0)
-    skel_bool = _prune_skeleton(skel_bool, min_branch=5)
+    skel_bool = _prune_skeleton(skel_bool, min_branch=2) # use 5 for larger W = 1200, 680
 
-    skel_bool[:2, :]  = False
-    skel_bool[-2:, :] = False
-    skel_bool[:, :2]  = False
-    skel_bool[:, -2:] = False
+    # skel_bool[:2, :]  = False
+    # skel_bool[-2:, :] = False
+    # skel_bool[:, :2]  = False
+    # skel_bool[:, -2:] = False
 
     skel_u8 = skel_bool.astype(np.uint8) * 255
     n_labels, labels, stats, _ = cv.connectedComponentsWithStats(skel_u8, connectivity=8)
@@ -411,8 +417,10 @@ def extract_centerline(
     largest_skel = 1 + int(np.argmax(stats[1:, cv.CC_STAT_AREA]))
     skel_bool = labels == largest_skel
 
-    if np.argwhere(skel_bool).shape[0] < 10:
+    if np.argwhere(skel_bool).shape[0] < 5:
+        print("skeleton pixels =", np.argwhere(skel_bool).shape[0])
         return disp, None
+        
 
     ox, oy = offset
 
@@ -529,8 +537,8 @@ class ROSCenterlineNode:
     TB_GAUSS  = "Gauss sigma"
     TB_THRESH = "Threshold"
     # W, H    = 2100, 1300
-    W, H    = 2300, 900
-    # W, H    = 320, 240
+    # W, H    = 1200, 680
+    W, H    = 600, 200
     # W, H    = 240, 180
 
     # Adaptive EMA bounds: alpha stays in [ALPHA_MIN, ALPHA_MAX]
