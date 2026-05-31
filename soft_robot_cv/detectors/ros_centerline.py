@@ -214,8 +214,8 @@ def _longest_path_on_skeleton(skel_img: np.ndarray) -> np.ndarray:
                         ni = idx_map[nr, nc]
                         if ni >= 0 and dist[ni] == -1:
                             # dist[ni] = dist[ci] + 1
-                            # dist[ni] = dist[ci] + np.sqrt(dr**2 + dc**2)  # actual distance
-                            dist[ni] = dist[ci] + (1.4142 if dr != 0 and dc != 0 else 1.0)  # octile distance
+                            dist[ni] = dist[ci] + np.sqrt(dr**2 + dc**2)  # actual distance (Euclidean)
+                            # dist[ni] = dist[ci] + (1.4142 if dr != 0 and dc != 0 else 1.0)  # octile distance
                             parent[ni] = ci
                             queue.append(ni)
                             if dist[ni] > far_dist:

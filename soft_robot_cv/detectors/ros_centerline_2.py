@@ -308,8 +308,8 @@ def _path_from_clamp(skel_img: np.ndarray, clamp_rc: Tuple[int, int]) -> np.ndar
                     ni = idx_map[nr, nc]
                     if ni >= 0 and dist[ni] == -1:
                         # dist[ni] = dist[ci] + 1 # or use actual distance: dist[ci] + np.sqrt(dr**2 + dc**2) or octile distance: dist[ci] + (1.4142 if dr != 0 and dc != 0 else 1.0)
-                        # dist[ci] + np.sqrt(dr**2 + dc**2)  # actual distance
-                        dist[ni] = dist[ci] + (1.4142 if dr != 0 and dc != 0 else 1.0)  # octile distance
+                        dist[ni] = dist[ci] + np.sqrt(dr**2 + dc**2)  # actual distance (Euclidean)
+                        # dist[ni] = dist[ci] + (1.4142 if dr != 0 and dc != 0 else 1.0)  # octile distance
                         parent[ni] = ci
                         queue.append(ni)
                         if dist[ni] > far_dist:
