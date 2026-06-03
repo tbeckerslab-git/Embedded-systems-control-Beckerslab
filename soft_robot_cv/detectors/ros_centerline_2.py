@@ -640,6 +640,9 @@ class ROSCenterlineNode:
     ALPHA_MAX = 0.5    # maximum alpha (most responsive)
     # Motion threshold in pixels: mean displacement above this → use ALPHA_MAX
     MOTION_THRESH_PX = 5.0
+    MAX_RAW_TIP_JUMP_PX = 40.0
+    MAX_ARC_REL_DEVIATION = 0.06
+    ARC_HISTORY_LEN = 30
 
     def __init__(self, topic: str, thresh: int = 100, save_path: str = "centerline_data_25pts.txt",
                  alpha: float = 0.05) -> None:
@@ -656,6 +659,8 @@ class ROSCenterlineNode:
         # --alpha CLI arg sets the fixed alpha only when adaptive mode is disabled
         self._alpha: float = float(np.clip(alpha, 0.0, 1.0))
         self._ema_pts: Optional[np.ndarray] = None   # float64 (N_OUT, 2)
+        self._last_accepted_raw_pts: Optional[np.ndarray] = None
+        self._arc_history: Deque[float] = deque(maxlen=self.ARC_HISTORY_LEN)
 
         # Latest decoded frame from ROS callback (protected by GIL — single writer)
         self._pending_frame: Optional[np.ndarray] = None
@@ -772,6 +777,46 @@ class ROSCenterlineNode:
         msg.data = flat.tolist()
         self._pub.publish(msg)
 
+    def _validate_centerline_candidate(
+        self,
+        line_pts: np.ndarray,
+        L_arc: float,
+        L_chord: float,
+    ) -> Tuple[bool, List[str]]:
+        """Reject detector glitches before they contaminate EMA/saved data."""
+        reasons: List[str] = []
+
+        if not np.isfinite(line_pts).all():
+            reasons.append("nonfinite")
+
+        if np.any(line_pts[:, 0] < 0) or np.any(line_pts[:, 0] >= self.W) \
+                or np.any(line_pts[:, 1] < 0) or np.any(line_pts[:, 1] >= self.H):
+            reasons.append("bounds")
+
+        if L_arc <= 5.0 or L_chord <= 5.0:
+            reasons.append("length")
+
+        if self._last_accepted_raw_pts is not None:
+            tip_jump = float(np.linalg.norm(
+                line_pts[-1].astype(np.float64) -
+                self._last_accepted_raw_pts[-1].astype(np.float64)
+            ))
+            if tip_jump > self.MAX_RAW_TIP_JUMP_PX:
+                reasons.append(f"tip_jump={tip_jump:.1f}px")
+
+        if len(self._arc_history) >= 5:
+            arc_ref = float(np.median(np.asarray(self._arc_history)))
+            if arc_ref > 1e-9:
+                arc_rel_dev = abs(float(L_arc) - arc_ref) / arc_ref
+                if arc_rel_dev > self.MAX_ARC_REL_DEVIATION:
+                    reasons.append(f"arc_dev={100*arc_rel_dev:.1f}%")
+
+        return len(reasons) == 0, reasons
+
+    def _accept_centerline_candidate(self, line_pts: np.ndarray, L_arc: float) -> None:
+        self._last_accepted_raw_pts = line_pts.astype(np.float64).copy()
+        self._arc_history.append(float(L_arc))
+
     # ---- key handling ------------------------------------------------------
 
     def _handle_key(self, key: int, last: Optional[np.ndarray], fps: float) -> None:
@@ -791,6 +836,14 @@ class ROSCenterlineNode:
             if self.st.saving:
                 self.st.frames_saved = 0
                 open(self.save_path, 'w').close()
+                open(self.debug_ratio_path, 'w').close()
+                self._arc_history.clear()
+                if self._ema_pts is not None:
+                    self._last_accepted_raw_pts = self._ema_pts.copy()
+                    seg = np.diff(self._ema_pts.astype(np.float64), axis=0)
+                    self._arc_history.append(float(np.sum(np.linalg.norm(seg, axis=1))))
+                else:
+                    self._last_accepted_raw_pts = None
                 logging.info("Saving to %s", self.save_path)
             else:
                 logging.info("Saving stopped. %d frames saved.", self.st.frames_saved)
@@ -854,6 +907,8 @@ class ROSCenterlineNode:
                     self.st.overlay_on, self.st.invert, self.st.clamp_pt
                 )
 
+                save_current_frame = False
+
                 if line_pts is not None:
 
                     #### ------ Debug: print arc length and chord length to check for orientation bias ----
@@ -874,9 +929,19 @@ class ROSCenterlineNode:
                     )
 
                     ratio = L_arc / max(L_chord, 1e-9)
-                    print(f"L_arc={L_arc:.2f} px, L_chord={L_chord:.2f} px, ratio={ratio:.4f}")
+                    candidate_ok, reject_reasons = self._validate_centerline_candidate(
+                        line_pts, L_arc, L_chord
+                    )
+                    if candidate_ok:
+                        print(f"L_arc={L_arc:.2f} px, L_chord={L_chord:.2f} px, ratio={ratio:.4f}")
+                    else:
+                        print(
+                            f"Rejected centerline: {', '.join(reject_reasons)} "
+                            f"(arc={L_arc:.2f}px, chord={L_chord:.2f}px, ratio={ratio:.4f})"
+                        )
+                        line_pts = None
 
-                    if self.st.saving:
+                    if line_pts is not None and self.st.saving:
                         row = np.concatenate([
                             [
                                 self._frame_count,
@@ -935,19 +1000,24 @@ class ROSCenterlineNode:
                             cv.imwrite(img_name, dbg_img)
 
 
+                    if line_pts is not None:
+                        self._accept_centerline_candidate(line_pts, L_arc)
+                        save_current_frame = True
+
                     # ---- Adaptive EMA smoothing (anti-jitter) ----------------
-                    pts_f = line_pts.astype(np.float64)
-                    if self._ema_pts is None:
-                        self._ema_pts = pts_f
-                    else:
-                        # Estimate motion: mean pixel displacement of all nodes
-                        motion = float(np.mean(np.sqrt(
-                            np.sum((pts_f - self._ema_pts) ** 2, axis=1)
-                        )))
-                        # Linearly ramp alpha between ALPHA_MIN and ALPHA_MAX
-                        t = min(1.0, motion / self.MOTION_THRESH_PX)
-                        alpha = self.ALPHA_MIN + t * (self.ALPHA_MAX - self.ALPHA_MIN)
-                        self._ema_pts = alpha * pts_f + (1.0 - alpha) * self._ema_pts
+                    if line_pts is not None:
+                        pts_f = line_pts.astype(np.float64)
+                        if self._ema_pts is None:
+                            self._ema_pts = pts_f
+                        else:
+                            # Estimate motion: mean pixel displacement of all nodes
+                            motion = float(np.mean(np.sqrt(
+                                np.sum((pts_f - self._ema_pts) ** 2, axis=1)
+                            )))
+                            # Linearly ramp alpha between ALPHA_MIN and ALPHA_MAX
+                            t = min(1.0, motion / self.MOTION_THRESH_PX)
+                            alpha = self.ALPHA_MIN + t * (self.ALPHA_MAX - self.ALPHA_MIN)
+                            self._ema_pts = alpha * pts_f + (1.0 - alpha) * self._ema_pts
                     # ----------------------------------------------------------
 
                 # Use last known EMA when detection fails — keeps output continuous
@@ -970,7 +1040,7 @@ class ROSCenterlineNode:
                     self._publish(line_pts)
 
                     # Save to file: [x0..x(N_OUT-1), y0..y(N_OUT-1), frame_index, timestamp]
-                    if self.st.saving:
+                    if self.st.saving and save_current_frame:
                         row = np.concatenate([line_pts[:, 0], line_pts[:, 1],
                                               [self.st.frames_saved], [self._pending_stamp]])
                         with open(self.save_path, 'a') as f:
