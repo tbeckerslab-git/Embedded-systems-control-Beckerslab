@@ -186,7 +186,7 @@ def _prune_skeleton(skel: np.ndarray, min_branch: int = 30) -> np.ndarray:
     for _ in range(min_branch):
         neighbour_count = cv.filter2D(skel, -1, kern,
                                        borderType=cv.BORDER_CONSTANT) * skel
-        endpoints = (neighbour_count == 2).astype(np.uint8) * skel
+        endpoints = (neighbour_count <= 2).astype(np.uint8) * skel
         if not endpoints.any():
             break
         skel = skel & ~endpoints
@@ -382,23 +382,64 @@ def _smooth_centerline(pts_rc: np.ndarray, n_out: int = N_OUT) -> Optional[np.nd
     from scipy.interpolate import splprep, splev
     if len(pts_rc) < 10:
         return None
-    rows = pts_rc[:, 0].astype(np.float64)
-    cols = pts_rc[:, 1].astype(np.float64)
+    # rows = pts_rc[:, 0].astype(np.float64)
+    # cols = pts_rc[:, 1].astype(np.float64)
 
     # Remove duplicate consecutive points (splprep requires distinct knots)
     mask = np.concatenate([[True], np.any(np.diff(pts_rc, axis=0) != 0, axis=1)])
-    rows, cols = rows[mask], cols[mask]
+    pts_rc = pts_rc[mask]
+
+    # --- now extract clean float arrays ---
+    rows = pts_rc[:, 0].astype(np.float64)
+    cols = pts_rc[:, 1].astype(np.float64)
+
+    # rows, cols = rows[mask], cols[mask]
     if len(rows) < 4:
         return None
+    
 
+    # --- compute arc-length for each point along the skeleton ---
+    seg = np.diff(pts_rc.astype(np.float64), axis=0)
+    arc = np.concatenate([[0.0], np.cumsum(np.linalg.norm(seg, axis=1))])
+    if arc[-1] < 5.0:
+        return None
+    
+    #  ------- Debug: visualize the raw skeleton path before spline fitting
+    if False:  # change to True for debugging
+        dbg = np.zeros((450,600,3), dtype=np.uint8)
+
+        for i in range(len(pts_rc)-1):
+            cv.line(
+                dbg,
+                (pts_rc[i,1], pts_rc[i,0]),
+                (pts_rc[i+1,1], pts_rc[i+1,0]),
+                (0,255,0),
+                1
+            )
+
+        cv.imshow("raw_skeleton_path", dbg)
     # Fit parametric cubic spline: t is normalised arc-length parameter [0, 1]
+    # try:
+    #     # pts_sub = pts[::2] # subsample every 2 pixels
+    #     rows_sub = rows[::1] # subsample every  pixels
+    #     cols_sub = cols[::1] # subsample every  pixels
+    #     tck, _ = splprep([cols_sub, rows_sub], s=len(rows_sub) * 0.1, k=3) # s controls the smoothness: higher s → smoother curve that may deviate more from the raw skeleton. Tune this as needed (e.g. s=len(rows) * 2 is a starting point).
+    # except Exception:
+    #     return None
+
+    # Fit parametric spline with arc-length parameterization
     try:
-        tck, _ = splprep([cols, rows], s=len(rows) * 0.5, k=3)
+        tck, _ = splprep([cols, rows], u=arc, s=arc[-1] * 0.01, k=3)  # s is smaller for tight bends
     except Exception:
         return None
 
-    # Resample at n_out equidistant points in parameter space
-    t_out = np.linspace(0.0, 1.0, n_out)
+    # # Resample at n_out equidistant points in parameter space
+    # t_out = np.linspace(0.0, 1.0, n_out)
+    # c_s, r_s = splev(t_out, tck)
+
+
+    # Resample at n_out equidistant points along the spline
+    t_out = np.linspace(0.0, arc[-1], n_out)
     c_s, r_s = splev(t_out, tck)
 
     return np.stack([c_s, r_s], axis=1).astype(np.int32)
@@ -453,7 +494,7 @@ def extract_centerline(
     clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_OPEN,  kernel_sm, iterations=1)
 
     skel_bool = skeletonize(clean_mask > 0)
-    skel_bool = _prune_skeleton(skel_bool, min_branch=2) # use 5 for larger W = 1200, 680
+    skel_bool = _prune_skeleton(skel_bool, min_branch=5) # use 5 for larger W = 1200, 680
 
     # skel_bool[:2, :]  = False
     # skel_bool[-2:, :] = False
@@ -585,8 +626,7 @@ class ROSCenterlineNode:
     WIN     = "ROS Centerline 2"
     WIN_BCG = "S1 BCG"
     TB_GAUSS  = "Gauss sigma"
-    TB_THRESH = "Threshold"
-    # W, H    = 2100, 1300
+    TB_THRESH = "Threshold" 
     # W, H    = 1200, 680
     W, H    = 600, 450 # Use (600, 600 *(1080/1440) to preserve aspect ratio of 1440x1080 input while speeding up processing with smaller frame size; adjust as needed for your input resolution and speed requirements
 
@@ -808,6 +848,27 @@ class ROSCenterlineNode:
                 )
 
                 if line_pts is not None:
+
+                    #### ------ Debug: print arc length and chord length to check for orientation bias ----
+                    # Arc length along centerline
+                    # t_fine = np.linspace(0.0, 1.0, 2000)  # dense sampling for accurate arc length
+                    # c_fine, r_fine = splev(t_fine,tck)
+                    # seg = np.diff(np.stack([c_fine, r_fine], axis=1), axis=0)
+                    # L_arc = np.sum(np.sqrt(np.sum(seg**2, axis=1)))
+
+                    seg = np.diff(line_pts.astype(np.float64), axis=0)
+                    L_arc = np.sum(np.linalg.norm(seg, axis=1))
+                    # L_arc = np.sum(np.sqrt(np.sum(seg**2, axis=1)))
+
+                    # End-to-end distance
+                    L_chord = np.linalg.norm(
+                        line_pts[-1].astype(np.float64) -
+                        line_pts[0].astype(np.float64)
+                    )
+
+                    print(f"L_arc={L_arc:.2f} px, L_chord={L_chord:.2f} px, ratio={L_arc/L_chord:.4f}")
+
+
                     # ---- Adaptive EMA smoothing (anti-jitter) ----------------
                     pts_f = line_pts.astype(np.float64)
                     if self._ema_pts is None:

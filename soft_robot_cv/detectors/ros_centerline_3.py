@@ -581,6 +581,26 @@ class ROSCenterlineNode:
                     self.st.overlay_on, self.st.invert, self.st.clamp_pt)
 
                 if line_pts is not None:
+
+                    #### ------ Debug: print arc length and chord length to check for orientation bias ----
+                    # Arc length along centerline
+                    # t_fine = np.linspace(0.0, 1.0, 2000)  # dense sampling for accurate arc length
+                    # c_fine, r_fine = splev(t_fine,tck)
+                    # seg = np.diff(np.stack([c_fine, r_fine], axis=1), axis=0)
+                    # L_arc = np.sum(np.sqrt(np.sum(seg**2, axis=1)))
+
+                    seg = np.diff(line_pts.astype(np.float64), axis=0)
+                    L_arc = np.sum(np.linalg.norm(seg, axis=1))
+                    # L_arc = np.sum(np.sqrt(np.sum(seg**2, axis=1)))
+
+                    # End-to-end distance
+                    L_chord = np.linalg.norm(
+                        line_pts[-1].astype(np.float64) -
+                        line_pts[0].astype(np.float64)
+                    )
+
+                    print(f"L_arc={L_arc:.2f} px, L_chord={L_chord:.2f} px, ratio={L_arc/L_chord:.4f}")
+
                     pts_f = line_pts.astype(np.float64)
                     if self._ema_pts is None:
                         self._ema_pts = pts_f
