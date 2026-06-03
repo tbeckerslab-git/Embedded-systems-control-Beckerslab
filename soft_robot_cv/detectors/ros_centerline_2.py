@@ -876,62 +876,63 @@ class ROSCenterlineNode:
                     ratio = L_arc / max(L_chord, 1e-9)
                     print(f"L_arc={L_arc:.2f} px, L_chord={L_chord:.2f} px, ratio={ratio:.4f}")
 
-                    row = np.concatenate([
-                        [
-                            self._frame_count,
-                            getattr(self, "_pending_stamp", 0.0),
-                            L_arc,
-                            L_chord,
-                            ratio,
-                            line_pts[0, 0],
-                            line_pts[0, 1],
-                            line_pts[-1, 0],
-                            line_pts[-1, 1],
-                        ],
-                        line_pts[:, 0],
-                        line_pts[:, 1],
-                    ])
+                    if self.st.saving:
+                        row = np.concatenate([
+                            [
+                                self._frame_count,
+                                getattr(self, "_pending_stamp", 0.0),
+                                L_arc,
+                                L_chord,
+                                ratio,
+                                line_pts[0, 0],
+                                line_pts[0, 1],
+                                line_pts[-1, 0],
+                                line_pts[-1, 1],
+                            ],
+                            line_pts[:, 0],
+                            line_pts[:, 1],
+                        ])
 
-                    debug_path = self.debug_ratio_path
-                    if (not os.path.exists(debug_path)) or os.path.getsize(debug_path) == 0:
-                        header = (
-                            ["frame_index", "ros_timestamp", "L_arc_px", "L_chord_px",
-                             "ratio", "base_x", "base_y", "tip_x", "tip_y"] +
-                            [f"x{i}" for i in range(N_OUT)] +
-                            [f"y{i}" for i in range(N_OUT)]
-                        )
-                        with open(debug_path, "w") as f:
-                            f.write("# " + " ".join(header) + "\n")
+                        debug_path = self.debug_ratio_path
+                        if (not os.path.exists(debug_path)) or os.path.getsize(debug_path) == 0:
+                            header = (
+                                ["frame_index", "ros_timestamp", "L_arc_px", "L_chord_px",
+                                 "ratio", "base_x", "base_y", "tip_x", "tip_y"] +
+                                [f"x{i}" for i in range(N_OUT)] +
+                                [f"y{i}" for i in range(N_OUT)]
+                            )
+                            with open(debug_path, "w") as f:
+                                f.write("# " + " ".join(header) + "\n")
 
-                    with open(debug_path, "a") as f:
-                        f.write(" ".join(f"{v:.6f}" for v in row) + "\n")
+                        with open(debug_path, "a") as f:
+                            f.write(" ".join(f"{v:.6f}" for v in row) + "\n")
 
-                    if ratio >= self.debug_ratio_image_threshold:
-                        os.makedirs(self.debug_img_dir, exist_ok=True)
-                        dbg_img = disp.copy()
-                        raw_pts = line_pts.reshape(-1, 1, 2).astype(np.int32)
-                        cv.polylines(dbg_img, [raw_pts], False, (255, 0, 255), 2, cv.LINE_AA)
-                        for pt in line_pts:
-                            cv.circle(dbg_img, (int(pt[0]), int(pt[1])), 2, (255, 0, 255), -1)
-                        cv.circle(dbg_img, (int(line_pts[0, 0]), int(line_pts[0, 1])),
-                                  7, (0, 0, 255), 2, cv.LINE_AA)
-                        cv.circle(dbg_img, (int(line_pts[-1, 0]), int(line_pts[-1, 1])),
-                                  7, (0, 255, 0), 2, cv.LINE_AA)
-                        cv.putText(
-                            dbg_img,
-                            f"frame={self._frame_count} ratio={ratio:.4f} arc={L_arc:.1f} chord={L_chord:.1f}",
-                            (10, max(25, dbg_img.shape[0] - 15)),
-                            cv.FONT_HERSHEY_SIMPLEX,
-                            0.55,
-                            (255, 0, 255),
-                            2,
-                            cv.LINE_AA,
-                        )
-                        img_name = os.path.join(
-                            self.debug_img_dir,
-                            f"frame_{self._frame_count:06d}_ratio_{ratio:.4f}.png",
-                        )
-                        cv.imwrite(img_name, dbg_img)
+                        if ratio >= self.debug_ratio_image_threshold:
+                            os.makedirs(self.debug_img_dir, exist_ok=True)
+                            dbg_img = disp.copy()
+                            raw_pts = line_pts.reshape(-1, 1, 2).astype(np.int32)
+                            cv.polylines(dbg_img, [raw_pts], False, (255, 0, 255), 2, cv.LINE_AA)
+                            for pt in line_pts:
+                                cv.circle(dbg_img, (int(pt[0]), int(pt[1])), 2, (255, 0, 255), -1)
+                            cv.circle(dbg_img, (int(line_pts[0, 0]), int(line_pts[0, 1])),
+                                      7, (0, 0, 255), 2, cv.LINE_AA)
+                            cv.circle(dbg_img, (int(line_pts[-1, 0]), int(line_pts[-1, 1])),
+                                      7, (0, 255, 0), 2, cv.LINE_AA)
+                            cv.putText(
+                                dbg_img,
+                                f"frame={self._frame_count} ratio={ratio:.4f} arc={L_arc:.1f} chord={L_chord:.1f}",
+                                (10, max(25, dbg_img.shape[0] - 15)),
+                                cv.FONT_HERSHEY_SIMPLEX,
+                                0.55,
+                                (255, 0, 255),
+                                2,
+                                cv.LINE_AA,
+                            )
+                            img_name = os.path.join(
+                                self.debug_img_dir,
+                                f"frame_{self._frame_count:06d}_ratio_{ratio:.4f}.png",
+                            )
+                            cv.imwrite(img_name, dbg_img)
 
 
                     # ---- Adaptive EMA smoothing (anti-jitter) ----------------
