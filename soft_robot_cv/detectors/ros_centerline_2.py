@@ -670,6 +670,8 @@ class ROSCenterlineNode:
         self.debug_ratio_path = "centerline_ratio_debug.csv"
         self.debug_img_dir = "ratio_debug_frames"
         self.debug_ratio_image_threshold = 1.06
+        self.debug_print_ratio = False
+        self.debug_save_ratio_images = False
 
         if _HAS_ROS:
             self._bridge = CvBridge()
@@ -932,13 +934,14 @@ class ROSCenterlineNode:
                     candidate_ok, reject_reasons = self._validate_centerline_candidate(
                         line_pts, L_arc, L_chord
                     )
-                    if candidate_ok:
+                    if candidate_ok and self.debug_print_ratio:
                         print(f"L_arc={L_arc:.2f} px, L_chord={L_chord:.2f} px, ratio={ratio:.4f}")
-                    else:
+                    elif not candidate_ok and self.debug_print_ratio:
                         print(
                             f"Rejected centerline: {', '.join(reject_reasons)} "
                             f"(arc={L_arc:.2f}px, chord={L_chord:.2f}px, ratio={ratio:.4f})"
                         )
+                    if not candidate_ok:
                         line_pts = None
 
                     if line_pts is not None and self.st.saving:
@@ -972,7 +975,7 @@ class ROSCenterlineNode:
                         with open(debug_path, "a") as f:
                             f.write(" ".join(f"{v:.6f}" for v in row) + "\n")
 
-                        if ratio >= self.debug_ratio_image_threshold:
+                        if self.debug_save_ratio_images and ratio >= self.debug_ratio_image_threshold:
                             os.makedirs(self.debug_img_dir, exist_ok=True)
                             dbg_img = disp.copy()
                             raw_pts = line_pts.reshape(-1, 1, 2).astype(np.int32)
