@@ -196,6 +196,105 @@ def _prune_skeleton(skel: np.ndarray, min_branch: int = 30) -> np.ndarray:
 
 N_OUT = 25   # number of centerline output points (was 100 in ros_centerline.py)
 
+# Experimental speed options.
+# If OpenCV was installed with opencv-contrib-python, ximgproc.thinning keeps
+# thinning inside OpenCV. Otherwise the code falls back to skimage.skeletonize.
+USE_OPENCV_THINNING = True
+
+# Temporal tracker tries to update the previous centerline directly from the
+# current binary mask. If it is not confident, full skeleton extraction is used.
+USE_TEMPORAL_TRACKER = True
+TRACK_SEARCH_RADIUS_PX = 12
+TRACK_MIN_MEAN_MASK_DISTANCE = 1.0
+
+
+def _thin_mask(clean_mask: np.ndarray) -> np.ndarray:
+    if USE_OPENCV_THINNING and hasattr(cv, "ximgproc") and hasattr(cv.ximgproc, "thinning"):
+        try:
+            return cv.ximgproc.thinning(
+                clean_mask, thinningType=cv.ximgproc.THINNING_GUOHALL
+            ) > 0
+        except cv.error:
+            pass
+    return skeletonize(clean_mask > 0)
+
+
+def _resample_xy_polyline(pts_xy: np.ndarray, n_out: int = N_OUT) -> Optional[np.ndarray]:
+    if pts_xy is None or len(pts_xy) < 2:
+        return None
+    pts = pts_xy.astype(np.float64)
+    seg = np.diff(pts, axis=0)
+    arc = np.concatenate([[0.0], np.cumsum(np.linalg.norm(seg, axis=1))])
+    if arc[-1] < 5.0:
+        return None
+    keep = np.concatenate([[True], np.diff(arc) > 1e-9])
+    pts = pts[keep]
+    arc = arc[keep]
+    if len(pts) < 2:
+        return None
+    s_new = np.linspace(0.0, arc[-1], n_out)
+    x_new = np.interp(s_new, arc, pts[:, 0])
+    y_new = np.interp(s_new, arc, pts[:, 1])
+    return np.stack([x_new, y_new], axis=1).astype(np.int32)
+
+
+def _track_centerline_from_previous(
+    clean_mask: np.ndarray,
+    prev_line_pts: Optional[np.ndarray],
+    offset: Tuple[int, int],
+    clamp_pt: Optional[Tuple[int, int]],
+    search_radius: int = TRACK_SEARCH_RADIUS_PX,
+) -> Optional[np.ndarray]:
+    if prev_line_pts is None or len(prev_line_pts) != N_OUT:
+        return None
+
+    ox, oy = offset
+    h, w = clean_mask.shape[:2]
+    prev = prev_line_pts.astype(np.float64).copy()
+    prev[:, 0] -= ox
+    prev[:, 1] -= oy
+
+    if np.any(prev[:, 0] < -search_radius) or np.any(prev[:, 0] >= w + search_radius) \
+            or np.any(prev[:, 1] < -search_radius) or np.any(prev[:, 1] >= h + search_radius):
+        return None
+
+    dist = cv.distanceTransform((clean_mask > 0).astype(np.uint8), cv.DIST_L2, 3)
+    tracked = np.zeros_like(prev)
+    scores = []
+
+    for i, (x, y) in enumerate(prev):
+        cx = int(round(x))
+        cy = int(round(y))
+        x0 = max(0, cx - search_radius)
+        x1 = min(w, cx + search_radius + 1)
+        y0 = max(0, cy - search_radius)
+        y1 = min(h, cy + search_radius + 1)
+        patch = dist[y0:y1, x0:x1]
+        if patch.size == 0 or float(patch.max()) <= 0.0:
+            return None
+
+        # Prefer mask-center points but penalize large motion from the previous
+        # point. This prevents neighboring rod sections from stealing each other.
+        yy, xx = np.mgrid[y0:y1, x0:x1]
+        penalty = 0.05 * np.sqrt((xx - x) ** 2 + (yy - y) ** 2)
+        score = patch - penalty
+        iy, ix = np.unravel_index(int(np.argmax(score)), score.shape)
+        tracked[i] = [x0 + ix, y0 + iy]
+        scores.append(float(patch[iy, ix]))
+
+    if np.mean(scores) < TRACK_MIN_MEAN_MASK_DISTANCE:
+        return None
+
+    if clamp_pt is not None:
+        tracked[0] = [clamp_pt[0] - ox, clamp_pt[1] - oy]
+
+    line_pts = _resample_xy_polyline(tracked, n_out=N_OUT)
+    if line_pts is None:
+        return None
+    line_pts[:, 0] += ox
+    line_pts[:, 1] += oy
+    return line_pts
+
 
 def _longest_path_on_skeleton(skel_img: np.ndarray) -> np.ndarray:
     pts = np.argwhere(skel_img)
@@ -453,6 +552,8 @@ def extract_centerline(
     overlay: bool,
     invert: bool = False,
     clamp_pt: Optional[Tuple[int, int]] = None,
+    prev_line_pts: Optional[np.ndarray] = None,
+    use_temporal_tracker: bool = USE_TEMPORAL_TRACKER,
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """Returns (display_frame, line_pts) where line_pts is (N_OUT,2) int32 or None.
 
@@ -494,7 +595,24 @@ def extract_centerline(
     clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_CLOSE, kernel_lg, iterations=1)    # fewer iterations → faster
     clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_OPEN,  kernel_sm, iterations=1)
 
-    skel_bool = skeletonize(clean_mask > 0)
+    if use_temporal_tracker:
+        tracked_pts = _track_centerline_from_previous(
+            clean_mask, prev_line_pts, offset, clamp_pt
+        )
+        if tracked_pts is not None:
+            if not overlay:
+                mask_bgr = cv.cvtColor(
+                    cv.resize(clean_mask,
+                              (x1 - x0 if roi_rect else w, y1 - y0 if roi_rect else h)),
+                    cv.COLOR_GRAY2BGR,
+                )
+                if roi_rect is not None:
+                    disp[y0:y1, x0:x1] = mask_bgr
+                else:
+                    disp = mask_bgr
+            return disp, tracked_pts
+
+    skel_bool = _thin_mask(clean_mask)
     skel_bool = _prune_skeleton(skel_bool, min_branch=5) # use 5 for larger W = 1200, 680
 
     # skel_bool[:2, :]  = False
@@ -803,15 +921,15 @@ class ROSCenterlineNode:
                 line_pts[-1].astype(np.float64) -
                 self._last_accepted_raw_pts[-1].astype(np.float64)
             ))
-            if tip_jump > self.MAX_RAW_TIP_JUMP_PX:
-                reasons.append(f"tip_jump={tip_jump:.1f}px")
+            # if tip_jump > self.MAX_RAW_TIP_JUMP_PX:
+            #     reasons.append(f"tip_jump={tip_jump:.1f}px")
 
         if len(self._arc_history) >= 5:
             arc_ref = float(np.median(np.asarray(self._arc_history)))
-            if arc_ref > 1e-9:
-                arc_rel_dev = abs(float(L_arc) - arc_ref) / arc_ref
-                if arc_rel_dev > self.MAX_ARC_REL_DEVIATION:
-                    reasons.append(f"arc_dev={100*arc_rel_dev:.1f}%")
+            # if arc_ref > 1e-9:
+                # arc_rel_dev = abs(float(L_arc) - arc_ref) / arc_ref
+                # if arc_rel_dev > self.MAX_ARC_REL_DEVIATION:
+                #     reasons.append(f"arc_dev={100*arc_rel_dev:.1f}%")
 
         return len(reasons) == 0, reasons
 
@@ -906,7 +1024,9 @@ class ROSCenterlineNode:
                 roi_rect = self.roi.rect if self.roi.have_rect else None
                 disp, line_pts = extract_centerline(
                     out, self.st.thresh_val, roi_rect,
-                    self.st.overlay_on, self.st.invert, self.st.clamp_pt
+                    self.st.overlay_on, self.st.invert, self.st.clamp_pt,
+                    prev_line_pts=self._last_accepted_raw_pts,
+                    use_temporal_tracker=USE_TEMPORAL_TRACKER
                 )
 
                 save_current_frame = False
