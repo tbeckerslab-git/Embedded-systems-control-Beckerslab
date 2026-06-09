@@ -740,8 +740,8 @@ def main() -> int:
                     help="ROS image topic to subscribe to (default: /camera/image_color)")
     ap.add_argument("--thresh", type=int, default=100,
                     help="Initial threshold value (0–255, default: 100)")
-    ap.add_argument("--save",   default="centerline_data.txt",
-                    help="Output file for centerline data (default: centerline_data.txt)")
+    ap.add_argument("--save",   default="centerline_data_100pts.txt",
+                    help="Output file for centerline data (default: centerline_data_100pts.txt)")
     ap.add_argument("--alpha", type=float, default=0.3,
                     help="EMA smoothing factor 0–1 (0=frozen, 1=no smoothing, default: 0.3)")
     ap.add_argument("--log",    default="INFO")
