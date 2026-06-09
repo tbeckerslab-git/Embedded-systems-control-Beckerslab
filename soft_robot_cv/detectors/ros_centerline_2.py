@@ -194,7 +194,7 @@ def _prune_skeleton(skel: np.ndarray, min_branch: int = 30) -> np.ndarray:
     return skel.astype(bool)
 
 
-N_OUT = 25   # number of centerline output points (was 100 in ros_centerline.py)
+N_OUT = 150   # number of centerline output points (was 100 in ros_centerline.py)
 
 # Experimental speed options.
 # If OpenCV was installed with opencv-contrib-python, ximgproc.thinning keeps
@@ -203,7 +203,7 @@ USE_OPENCV_THINNING = True
 
 # Temporal tracker tries to update the previous centerline directly from the
 # current binary mask. If it is not confident, full skeleton extraction is used.
-USE_TEMPORAL_TRACKER = True
+USE_TEMPORAL_TRACKER = False
 TRACK_SEARCH_RADIUS_PX = 12
 TRACK_MIN_MEAN_MASK_DISTANCE = 1.0
 
@@ -392,7 +392,7 @@ def _path_from_clamp(skel_img: np.ndarray, clamp_rc: Tuple[int, int]) -> np.ndar
 
     # dist   = np.full(len(pts), -1, dtype=np.int32) # change to float if you want actual distances instead of hop counts
     dist   = np.full(len(pts), -1, dtype=np.float64) 
-    parent = np.full(len(pts), -1, dtype=np.int32)
+    parent = np.full(len(pts), -1, dtype=np.float64)
     dist[nearest_idx] = 0
     queue = deque([nearest_idx])
     far_idx, far_dist = nearest_idx, 0
@@ -408,8 +408,8 @@ def _path_from_clamp(skel_img: np.ndarray, clamp_rc: Tuple[int, int]) -> np.ndar
                     ni = idx_map[nr, nc]
                     if ni >= 0 and dist[ni] == -1:
                         # dist[ni] = dist[ci] + 1 # or use actual distance: dist[ci] + np.sqrt(dr**2 + dc**2) or octile distance: dist[ci] + (1.4142 if dr != 0 and dc != 0 else 1.0)
-                        dist[ni] = dist[ci] + np.sqrt(dr**2 + dc**2)  # actual distance (Euclidean)
-                        # dist[ni] = dist[ci] + (1.4142 if dr != 0 and dc != 0 else 1.0)  # octile distance
+                        dist[ni] = dist[ci] + (1.4142 if dr != 0 and dc != 0 else 1.0)  # octile distance
+                        # dist[ni] = dist[ci] + np.sqrt(dr**2 + dc**2)  # actual distance (Euclidean)
                         parent[ni] = ci
                         queue.append(ni)
                         if dist[ni] > far_dist:
@@ -590,7 +590,7 @@ def extract_centerline(
 
     kernel_sm = cv.getStructuringElement(cv.MORPH_ELLIPSE, (2, 2)) # opening kernel: removes small noise blobs that can break skeleton connectivity
     # kernel_lg = cv.getStructuringElement(cv.MORPH_ELLIPSE, (15, 15))  # original: rounds endpoints ~6mm gap
-    kernel_lg = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))      # closing kernel: smaller: less rounding, better endpoint coverage
+    kernel_lg = cv.getStructuringElement(cv.MORPH_ELLIPSE, (2, 2))      # closing kernel: smaller: less rounding, better endpoint coverage
     # clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_CLOSE, kernel_lg, iterations=3)  # original
     clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_CLOSE, kernel_lg, iterations=1)    # fewer iterations → faster
     clean_mask = cv.morphologyEx(clean_mask, cv.MORPH_OPEN,  kernel_sm, iterations=1)
@@ -747,15 +747,15 @@ class ROSCenterlineNode:
     TB_GAUSS  = "Gauss sigma"
     TB_THRESH = "Threshold" 
     # W, H    = 1200, 680
-    W, H    = 600, 450 # Use (600, 600 *(1080/1440) to preserve aspect ratio of 1440x1080 input while speeding up processing with smaller frame size; adjust as needed for your input resolution and speed requirements
+    W, H    = 400, 300 # Use (600, 600 *(1080/1440) to preserve aspect ratio of 1440x1080 input while speeding up processing with smaller frame size; adjust as needed for your input resolution and speed requirements
 
     # W, H    = 240, 180
 
     # Adaptive EMA bounds: alpha stays in [ALPHA_MIN, ALPHA_MAX]
     # When rod is still → alpha=ALPHA_MIN (heavy smoothing, anti-jitter)
     # When rod moves fast → alpha=ALPHA_MAX (follow motion)
-    ALPHA_MIN = 0.05   # minimum alpha (most smoothing)
-    ALPHA_MAX = 0.5    # maximum alpha (most responsive)
+    ALPHA_MIN = 0.02   # minimum alpha (most smoothing)
+    ALPHA_MAX = 0.3    # maximum alpha (most responsive)
     # Motion threshold in pixels: mean displacement above this → use ALPHA_MAX
     MOTION_THRESH_PX = 5.0
     MAX_RAW_TIP_JUMP_PX = 40.0
@@ -1145,13 +1145,21 @@ class ROSCenterlineNode:
 
                 # Use last known EMA when detection fails — keeps output continuous
                 if self._ema_pts is not None:
-                    line_pts = np.round(self._ema_pts).astype(np.int32)
+                    # line_pts = np.round(self._ema_pts).astype(np.int32)
+                    # Save float EMA points instead of rounding integers to preserve precision in saved data and ROS output; only round for display purposes
+                    line_pts = self._ema_pts.astype(np.float32)   
+
+                    draw_pts = np.round(self._ema_pts).astype(np.int32)   # for display only    
+
+                    
 
                     # Draw green line ONCE here (extract_centerline draws nothing)
-                    cv.polylines(disp, [line_pts.reshape(-1, 1, 2)], False,
+                    # cv.polylines(disp, [line_pts.reshape(-1, 1, 2)], False,
+                    cv.polylines(disp, [draw_pts.reshape(-1, 1, 2)], False,
                                  (0, 255, 0), 2, cv.LINE_AA)
                     step = max(1, N_OUT // 8)   # ~8 dots along the rod
-                    for pt in line_pts[::step]:
+                    # for pt in line_pts[::step]:
+                    for pt in draw_pts[::step]:
                         cv.circle(disp, (int(pt[0]), int(pt[1])), 3, (0, 80, 255), -1)
                     if self.st.clamp_pt is not None:
                         cx, cy = self.st.clamp_pt
