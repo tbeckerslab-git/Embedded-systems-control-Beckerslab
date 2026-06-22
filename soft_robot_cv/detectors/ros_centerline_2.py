@@ -50,6 +50,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from time import perf_counter, sleep
 from typing import Deque, List, Optional, Tuple, Union
+from typing import Optional
 
 import cv2 as cv
 import numpy as np
@@ -235,7 +236,9 @@ def _resample_xy_polyline(pts_xy: np.ndarray, n_out: int = N_OUT) -> Optional[np
     s_new = np.linspace(0.0, arc[-1], n_out)
     x_new = np.interp(s_new, arc, pts[:, 0])
     y_new = np.interp(s_new, arc, pts[:, 1])
+    # return np.stack([x_new, y_new], axis=1).astype(np.float64)
     return np.stack([x_new, y_new], axis=1).astype(np.int32)
+
 
 
 def _track_centerline_from_previous(
@@ -762,10 +765,16 @@ class ROSCenterlineNode:
     MAX_ARC_REL_DEVIATION = 0.06
     ARC_HISTORY_LEN = 30
 
-    def __init__(self, topic: str, thresh: int = 100, save_path: str = "centerline_data_25pts.txt",
-                 alpha: float = 0.05) -> None:
+
+    # def __init__(self, topic: str, thresh: int = 100, save_path: str = "centerline_data_25pts.txt",
+    #              alpha: float = 0.05) -> None:
+    #     self.topic      = topic
+    #     self.save_path  = save_path
+
+    def __init__(self, topic: str, thresh: int = 100, save_path: Optional[str] = None,
+                alpha: float = 0.05) -> None:
         self.topic      = topic
-        self.save_path  = save_path
+        self.save_path  = save_path or f"centerline_data_{N_OUT}pts.txt"
         self.st         = AppState(thresh_val=thresh)
         self.roi        = ROISelector()
         self.bcg_ctrl   = BCGControls(self.WIN_BCG, self.st.bcg_state)
@@ -1233,8 +1242,12 @@ def main() -> int:
                     help="ROS image topic to subscribe to (default: /camera/image_color)")
     ap.add_argument("--thresh", type=int, default=100,
                     help="Initial threshold value (0–255, default: 100)")
-    ap.add_argument("--save",   default="centerline_data_25pts.txt",
-                    help="Output file for centerline data (default: centerline_data_25pts.txt)")
+    # ap.add_argument("--save",   default="centerline_data_25pts.txt",
+    #                 help="Output file for centerline data (default: centerline_data_25pts.txt)")
+
+    ap.add_argument("--save", default=None,
+                help=f"Output file for centerline data (default: centerline_data_{N_OUT}pts.txt)")
+    
     ap.add_argument("--alpha", type=float, default=0.05,
                     help="EMA base alpha (adaptive range [alpha, ALPHA_MAX=0.5], default: 0.05)")
     ap.add_argument("--log",    default="INFO")
